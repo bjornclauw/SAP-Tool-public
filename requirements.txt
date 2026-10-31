@@ -1,0 +1,7 @@
+# No external dependencies required for mock mode
+# pywinstyles is optional (only needed for colored title bars on Windows)
+# pip install pywinstyles  # if you want colored title bars
+#
+# tkinterdnd2 — needed for file drag-and-drop in PRH upload zone:
+#   python/python-3.11.8.amd64/python.exe -m pip install tkinterdnd2
+# This installs into the portable Python folder (gitignored, not tracked).

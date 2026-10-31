@@ -1,0 +1,725 @@
+{
+  "customcomponents": {
+    "buttons": {
+      "atb_toggle_btn": {
+        "text": "â–¾  Create ATB (Purchase Request)",
+        "script": "",
+        "script_name": "Toggle ATB Panel"
+      },
+      "atb_goods_btn": {
+        "text": "Create Goods ATB",
+        "script": "session.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nME51N\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"KNTTP\",\"F\"  \nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"EPSTP\",\"\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"TXZ01\",\"{{txz01}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"MENGE\",\"1\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"MEINS\",\"PE\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"ELPEI\",\"D\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"EEIND\",\"{{eeind}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"WGBEZ\",\"{{wgbbez}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"NAME1\",\"{{name1}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"LGOBE\",\"{{lgobe}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"EKGRP\",\"{{ekgrp}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"AFNAM\",\"{{afnam}}\"\n'session.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"LIFNR\",\"{{lifnr}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"FLIEF\",\"{{lifnr}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"EKORG\",\"{{ekorg}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").currentCellColumn = \"EKORG\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").pressEnter\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT7/ssubTABSTRIPCONTROL1SUB:SAPLMEVIEWS:1101/subSUB2:SAPLMEACCTVI:0100/subSUB1:SAPLMEACCTVI:1100/ctxtMEACCT1100-SAKTO\").text = \"{{sakto}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT7/ssubTABSTRIPCONTROL1SUB:SAPLMEVIEWS:1101/subSUB2:SAPLMEACCTVI:0100/subSUB1:SAPLMEACCTVI:1100/subKONTBLOCK:SAPLKACB:2100/ctxtCOBL-AUFNR\").text = \"{{order}}\"\nsession.findById(\"wnd[0]/tbar[0]/btn[11]\").press\nsbar_text = session.findById(\"wnd[0]/sbar\").text\nsbar_type = session.findById(\"wnd[0]/sbar\").MessageType\n{{ atb_status_text }} = sbar_text\n{{ atb_status_type }} = sbar_type",
+        "script_name": "Create Goods ATB"
+      },
+      "atb_services_btn": {
+        "text": "Create Services ATB",
+        "script": "session.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nME51N\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"KNTTP\",\"F\"  \nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"EPSTP\",\"D\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"TXZ01\",\"{{txz01}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"MENGE\",\"1\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"MEINS\",\"PE\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"ELPEI\",\"D\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"EEIND\",\"{{eeind}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"WGBEZ\",\"{{wgbbez}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"NAME1\",\"{{name1}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"LGOBE\",\"{{lgobe}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"EKGRP\",\"{{ekgrp}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"AFNAM\",\"{{afnam}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"LIFNR\",\"{{lifnr}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"FLIEF\",\"{{lifnr}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").modifyCell 0,\"EKORG\",\"{{ekorg}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").currentCellColumn = \"EKORG\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell\").pressEnter\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT1/ssubTABSTRIPCONTROL1SUB:SAPLMEGUI:1328/subSUB0:SAPLMLSP:0400/tblSAPLMLSPTC_VIEW/txtESLL-KTEXT1[3,0]\").text = \"{{ktext1}}\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT1/ssubTABSTRIPCONTROL1SUB:SAPLMEGUI:1328/subSUB0:SAPLMLSP:0400/tblSAPLMLSPTC_VIEW/txtESLL-MENGE[4,0]\").text = \"1\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT1/ssubTABSTRIPCONTROL1SUB:SAPLMEGUI:1328/subSUB0:SAPLMLSP:0400/tblSAPLMLSPTC_VIEW/ctxtESLL-MEINS[5,0]\").text = \"PE\"\nsession.findById(\"wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT4\").select\nsession.findById(\"wnd[1]/usr/ctxtESKN-SAKTO\").text = \"{{sakto}}\"\nsession.findById(\"wnd[1]/usr/subKONTBLOCK:SAPLKACB:2100/ctxtCOBL-AUFNR\").text = \"{{order}}\"\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nsession.findById(\"wnd[0]/tbar[0]/btn[11]\").press\nsbar_text = session.findById(\"wnd[0]/sbar\").text\nsbar_type = session.findById(\"wnd[0]/sbar\").MessageType\n{{ atb_status_text }} = sbar_text\n{{ atb_status_type }} = sbar_type",
+        "script_name": "Create Services ATB"
+      },
+      "atb_clear_btn": {
+        "text": "Clear",
+        "script": "",
+        "script_name": "Clear ATB Fields"
+      },
+      "proforma_upload_btn": {
+        "text": "Upload PDF",
+        "script": "' Upload attachment to IW32 work order\n' Reads: {{file_dir}}, {{file_name}}, {{doc_nr}}, {{description}}, {{order}}\n' Writes: {{upload_status}}\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = {{order}}\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD\").select()\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").pressToolbarButton \"CREATE&ASSIGN\"\nsession.findById(\"wnd[1]/usr/sub:SAPLSPO4:0300/ctxtSVALD-VALUE[0,21]\").text = {{doc_nr}}\nsession.findById(\"wnd[1]/usr/sub:SAPLSPO4:0300/txtSVALD-VALUE[2,21]\").text = {{description}}\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press()\nsession.findById(\"wnd[1]/usr/ctxtDY_PATH\").text = {{file_dir}}\nsession.findById(\"wnd[1]/usr/ctxtDY_FILENAME\").text = {{file_name}}\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press()\nsession.findById(\"wnd[0]/tbar[0]/btn[11]\").press\nsbar_text = session.findById(\"wnd[0]/sbar\").text\nsbar_type = session.findById(\"wnd[0]/sbar\").MessageType\n{{ upload_status }} = sbar_text\n{{ upload_status_type }} = sbar_type",
+        "script_name": "Upload Proforma PDF"
+      },
+      "toolbar_qo1": {
+        "text": "Open",
+        "script_name": "Open Werkorder",
+        "script": ""
+      },
+      "toolbar_qo2": {
+        "text": "Open",
+        "script_name": "Open Melding",
+        "script": ""
+      },
+      "toolbar_qo3": {
+        "text": "REV",
+        "script_name": "Open revisie",
+        "script": ""
+      },
+      "toolbar_sc1": {
+        "text": "Aanvragen",
+        "script_name": "",
+        "script": ""
+      },
+      "toolbar_sc2": {
+        "text": "TUSSENWERK",
+        "script_name": "",
+        "script": ""
+      },
+      "toolbar_sc3": {
+        "text": "BACKLOG",
+        "script_name": "",
+        "script": ""
+      },
+      "toolbar_sc4": {
+        "text": "UREN",
+        "script_name": "",
+        "script": ""
+      },
+      "toolbar_sc5": {
+        "text": "NIEUW 5",
+        "script_name": "",
+        "script": ""
+      },
+      "toolbar_sc6": {
+        "text": "NIEUW 6",
+        "script_name": "",
+        "script": ""
+      },
+      "prh_lookup_btn": {
+        "text": "Lookup ATB",
+        "script": "' Read order short text from IW32 first\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = {{order}}\nsession.findById(\"wnd[0]\").sendVKey 0\n_short_text = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/subSUB_TEXT:SAPLCOIH:1103/cntlLTEXT/shell\").text\n{{ order_short_text }} = _short_text\n_sys_status = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/txtCAUFVD-STTXT\").text\n{{ order_system_status }} = _sys_status\n\n' ME5A Purchase Request Lookup using SAP toolbar export (direct /n navigation, no menu back-navigation)\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nME5A\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtS_AUFNR-LOW\").Text = {{order}}\nsession.findById(\"wnd[0]/tbar[1]/btn[8]\").press\n' Export via ALV toolbar button (menu indices differ per SAP version)\nsession.findById(\"wnd[0]/tbar[1]/btn[45]\").press\n' Select 'In tekstformaat met tabs' (option 1)\nsession.findById(\"wnd[1]/usr/subSUBSCREEN_STEPLOOP:SAPLSPO5:0150/sub:SAPLSPO5:0150/radSPOPLI-SELFLAG[1,0]\").select()\nsession.findById(\"wnd[1]/usr/subSUBSCREEN_STEPLOOP:SAPLSPO5:0150/sub:SAPLSPO5:0150/radSPOPLI-SELFLAG[1,0]\").setFocus\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\n' Set export path and filename\nsession.findById(\"wnd[1]/usr/ctxtDY_PATH\").text = {{export_path}}\nsession.findById(\"wnd[1]/usr/ctxtDY_FILENAME\").text = {{export_file}}\nsession.findById(\"wnd[1]/usr/ctxtDY_PATH\").setFocus\nsession.findById(\"wnd[1]/usr/ctxtDY_PATH\").caretPosition = 2\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\n' Signal export complete\n{{ export_done }} = \"1\"",
+        "script_name": "ME5A Purchase Request Lookup"
+      },
+      "prh_open_atb_btn": {
+        "text": "Open ATB",
+        "script": "' Display a purchase requisition in ME53N\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nME53N\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[0]\").select\nsession.findById(\"wnd[1]/usr/subSUB0:SAPLMEGUI:0003/ctxtMEPO_SELECT-BANFN\").text = {{prh_atb_number}}\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press",
+        "script_name": "Display Purchase Requisition (ME53N)"
+      },
+      "prh_open_order_btn": {
+        "text": "Open Order",
+        "script": "' Open a work order in IW32 (history double-click)\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = {{order}}\nsession.findById(\"wnd[0]\").sendVKey 0",
+        "script_name": "Open Order in IW32"
+      },
+      "prh_order_meta_btn": {
+        "text": "Order Details",
+        "script": "' Order date + work center for header card and history\n' Runs on the IW32 header context, before any tab switch. Chained\n' before the attachment count (see _read_attach_list).\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = {{order}}\nsession.findById(\"wnd[0]\").sendVKey 0\n_meta_date = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKZ/ssubSUB_AUFTRAG:SAPLCOIH:1120/subTERM:SAPLCOIH:7300/ctxtCAUFVD-GSTRP\").text\n{{ order_basic_start }} = _meta_date\n_meta_wp = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKZ/ssubSUB_AUFTRAG:SAPLCOIH:1120/subHEADER:SAPLCOIH:0154/ctxtCAUFVD-VAPLZ\").text\n{{ order_workplace }} = _meta_wp",
+        "script_name": "Read Order Date and Work Center"
+      },
+      "prh_reopen_btn": {
+        "text": "Reopen order",
+        "script": "' Reopen a TAFS (technisch afgesloten) order via IW32\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = {{order}}\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[9]/menu[2]/menu[1]\").select\nsession.findById(\"wnd[0]/tbar[0]/btn[11]\").press\n' Re-display the order: after Save the screen state differs, so navigate\n' fresh (same proven prefix as Lookup) before reading the status line\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = {{order}}\nsession.findById(\"wnd[0]\").sendVKey 0\n_reopened = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/txtCAUFVD-STTXT\").text\n{{ order_system_status }} = _reopened",
+        "script_name": "Reopen Order (IW32)"
+      },
+      "refresh_attachments_btn": {
+        "text": "Refresh Attachments",
+        "script": "' IW32: navigate to IHKD tab and count attachment rows via getCellValue\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = {{order}}\nsession.findById(\"wnd[0]\").sendVKey 0\n' Navigate to IHKD tab\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD\").select()\n' Read row count from DVS ALV shell\nrowCount = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").RowCount\n{{ prh_attach_count }} = rowCount",
+        "script_name": "Count Attachment Rows"
+      },
+      "prh_read_attach_row": {
+        "text": "Read Attach Row",
+        "script": "' Read one attachment row from IHKD grid via getCellValue\n' Reads: prh_read_idx\n' Writes: prh_cell_type, prh_cell_doknr, prh_cell_filename, prh_cell_description\ndt = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").getCellValue {{prh_read_idx}}, \"DOKAR\"\ndn = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").getCellValue {{prh_read_idx}}, \"DOKNR\"\nfn = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").getCellValue {{prh_read_idx}}, \"FILE_NAME\"\ndesc = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").getCellValue {{prh_read_idx}}, \"DKTXT\"\n{{ prh_cell_type }} = dt\n{{ prh_cell_doknr }} = dn\n{{ prh_cell_filename }} = fn\n{{ prh_cell_description }} = desc",
+        "script_name": "Read Attachment Row"
+      },
+      "os_search_btn": {
+        "text": "Search",
+        "script": "' IW38 Order Search\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW38\"\nsession.findById(\"wnd[0]\").sendVKey 0\n' Fill selection fields from variables\nsession.findById(\"wnd[0]/tbar[1]/btn[19]\").press\nsession.findById(\"wnd[0]/usr/ctxtSTRNO-LOW\").text = {{os_tplnr}}\nsession.findById(\"wnd[0]/usr/ctxtGEWRK-LOW\").text = {{os_workplace}}\nsession.findById(\"wnd[0]/usr/txtKTEXT-LOW\").text = {{os_text}}\nsession.findById(\"wnd[0]/usr/ctxtREVNR-LOW\").text = {{os_revnr}}\nsession.findById(\"wnd[0]/usr/ctxtINGPR-LOW\").text = {{os_ingrp}}\nsession.findById(\"wnd[0]/usr/txtEQFNR-LOW\").text = {{os_eqfnr}}\nsession.findById(\"wnd[0]/usr/ctxtAUART-LOW\").text = {{os_order_type}}\nsession.findById(\"wnd[0]/usr/ctxtSTAI1-LOW\").text = {{os_status}}\nsession.findById(\"wnd[0]/usr/ctxtGSTRP-LOW\").text = {{os_date_from}}\nsession.findById(\"wnd[0]/usr/ctxtGSTRP-HIGH\").text = {{os_date_to}}\nsession.findById(\"wnd[0]/tbar[1]/btn[8]\").press\nsession.findById(\"wnd[0]/tbar[1]/btn[8]\").press",
+        "script_name": "IW38 Order Search"
+      },
+      "os_clear_btn": {
+        "text": "Clear",
+        "script_name": "Clear Order Search Filters"
+      },
+      "os_read_tcode_btn": {
+        "text": "Check Transaction",
+        "script": "' Detect single-hit detail (IW32) vs results list (IW38)\n_tcode = session.Info.Transaction\n{{ os_tcode }} = _tcode",
+        "script_name": "Read Active Transaction"
+      },
+      "os_read_order_btn": {
+        "text": "Read Order No",
+        "script": "' Single-hit order number (isolated read)\n_d_nr = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/txtCAUFVD-AUFNR\").text\n{{ os_single_order }} = _d_nr",
+        "script_name": "Read Single-Hit Order Number"
+      },
+      "os_read_text_btn": {
+        "text": "Read Short Text",
+        "script": "' Single-hit short text (isolated: a wrong id can't block the status read)\n_d_tx = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/subSUB_TEXT:SAPLCOIH:1103/cntlLTEXT/shell\").text\n{{ os_single_text }} = _d_tx",
+        "script_name": "Read Single-Hit Short Text"
+      },
+      "os_read_status_btn": {
+        "text": "Read Status",
+        "script": "' Single-hit system status (isolated read)\n_d_st = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/txtCAUFVD-STTXT\").text\n{{ os_single_status }} = _d_st",
+        "script_name": "Read Single-Hit Status"
+      },
+      "os_export_list_btn": {
+        "text": "Export List",
+        "script": "' Export the grid\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[11]/menu[2]\").select\nsession.findById(\"wnd[1]/usr/subSUBSCREEN_STEPLOOP:SAPLSPO5:0150/sub:SAPLSPO5:0150/radSPOPLI-SELFLAG[1,0]\").select\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nsession.findById(\"wnd[1]/usr/ctxtDY_PATH\").text = {{os_export_path}}\nsession.findById(\"wnd[1]/usr/ctxtDY_FILENAME\").text = {{os_export_file}}\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\n{{ export_done }} = \"1\"",
+        "script_name": "Export Results List"
+      },
+      "po_export_iw38_btn": {
+        "text": "Export IW38 Grid",
+        "script": "' Print Orders: export IW38 grid\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[11]/menu[2]\").select\nsession.findById(\"wnd[1]/usr/subSUBSCREEN_STEPLOOP:SAPLSPO5:0150/sub:SAPLSPO5:0150/radSPOPLI-SELFLAG[1,0]\").select\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nsession.findById(\"wnd[1]/usr/ctxtDY_PATH\").text = \"{{po_export_path}}\"\nsession.findById(\"wnd[1]/usr/ctxtDY_FILENAME\").text = \"sap_iw38_export.txt\"\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\n{{ export_done }} = \"1\"\n",
+        "script_name": "Export IW38 Grid"
+      },
+      "po_start_btn": {
+        "text": "▶ Start",
+        "script": "",
+        "script_name": "Start Processing"
+      },
+      "po_pause_btn": {
+        "text": "⏸ Pause",
+        "script": "",
+        "script_name": "Pause Processing"
+      },
+      "po_generate_pdf_btn": {
+        "text": "Generate PDF List",
+        "script": "",
+        "script_name": "Generate PDF"
+      },
+      "po_open_order": {
+        "text": "Open Order",
+        "script": "' Print Orders: open work order in IW32\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = \"{{po_current_order}}\"\nsession.findById(\"wnd[0]\").sendVKey 0\n",
+        "script_name": "Open Order in IW32"
+      },
+      "po_print_pdf": {
+        "text": "Print to Spool",
+        "script": "' Print Orders: print work order to spool via IW32 menu\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[6]/menu[0]\").select\nsession.findById(\"wnd[1]/tbar[0]/btn[16]\").press\nsession.findById(\"wnd[1]/usr/chkSSFPP-TDIMMED\").selected = false\nsession.findById(\"wnd[1]/usr/chkSSFPP-TDIMMED\").setFocus\nsession.findById(\"wnd[1]/tbar[0]/btn[86]\").press\nsession.findById(\"wnd[1]/tbar[0]/btn[12]\").press\n",
+        "script_name": "Print Work Order to Spool"
+      },
+      "po_export_attachments": {
+        "text": "Export Attachments",
+        "script": "' Print Orders: select IHKD tab, read row count (TOGGLE might break getCellValue)\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD\").select\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").pressToolbarButton \"TOGGLE\"\nrowCount = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").RowCount\n{{ po_row_count }} = rowCount\n",
+        "script_name": "Read IHKD Grid + Toggle"
+      },
+      "po_read_doknr": {
+        "text": "Read 1 DOKNR",
+        "script": "' Read DOKNR at po_doknr_read_idx into po_doknr_read_val\ndoknr = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").getCellValue {{po_doknr_read_idx}}, \"DOKNR\"\n{{ po_doknr_read_val }} = doknr\n",
+        "script_name": "Read One DOKNR"
+      },
+      "po_export_one_attachment": {
+        "text": "Export 1 Image",
+        "script": "' Print Orders: export one attachment via menu bar\n' Reads: {{po_attach_row_idx}}, {{po_attach_target}}\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").currentCellColumn = \"DOKNR\"\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").currentCellRow = {{po_attach_row_idx}}\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").clickCurrentCell\nsession.findById(\"wnd[0]/mbar/menu[5]/menu[5]\").select\nsession.findById(\"wnd[1]/usr/ctxtDRAW-FILEP\").text = \"{{po_attach_target}}\"\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nsession.findById(\"wnd[0]/tbar[0]/btn[3]\").press\n",
+        "script_name": "Export One Image Attachment"
+      },
+      "po_download_image": {
+        "text": "SP02 PDF & Cleanup",
+        "script": "' Print Orders: go to SP02, save spool as PDF, delete spool\n' Reads: {{po_export_path}}, {{po_pdf_filename}}, {{po_current_order}}\n' Writes: {{po_print_status}}\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nSP02\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/chk[1,3]\").selected = true\nsession.findById(\"wnd[0]/usr/chk[1,3]\").setFocus\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[2]/menu[2]\").select\nsession.findById(\"wnd[1]/usr/ctxtDY_PATH\").text = \"{{po_export_path}}\"\nsession.findById(\"wnd[1]/usr/ctxtDY_FILENAME\").text = \"{{po_pdf_filename}}\"\nsession.findById(\"wnd[1]/usr/ctxtDY_FILENAME\").caretPosition = 16\nsession.findById(\"wnd[1]/tbar[0]/btn[11]\").press\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[7]\").select\nsession.findById(\"wnd[1]/usr/btnSPOP-OPTION1\").press\n{{ po_print_status }} = \"printed\"\n",
+        "script_name": "SP02 Export & Delete"
+      },
+      "si_create_notification": {
+        "text": "Create Notification",
+        "script": "session.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW21\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtRIWO00-QMART\").text = \"Z3\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/tabsTAB_GROUP_10/tabp10\\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_1:SAPLIQS0:7322/subOBJEKT:SAPLIWO1:0100/ctxtRIWO1-TPLNR\").text = {{si_floc}}\nsession.findById(\"wnd[0]/usr/subSCREEN_1:SAPLIQS0:1050/subNOTIF_TYPE:SAPLIQS0:1052/txtVIQMEL-QMTXT\").text = {{si_stext}}\nsession.findById(\"wnd[0]/usr/tabsTAB_GROUP_10/tabp10\\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_2:SAPLIQS0:7715/cntlTEXT/shellcont/shell\").text = {{si_ltext}}\nsession.findById(\"wnd[0]/usr/tabsTAB_GROUP_10/tabp10\\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_3:SAPLIQS0:7326/ctxtVIQMEL-INGRP\").text = \"\"\nsession.findById(\"wnd[0]/usr/tabsTAB_GROUP_10/tabp10\\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_3:SAPLIQS0:7326/ctxtVIQMEL-IWERK\").text = \"BE21\"\nsession.findById(\"wnd[0]/usr/tabsTAB_GROUP_10/tabp10\\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_3:SAPLIQS0:7326/ctxtRIWO00-GEWRK\").text = \"\"\nsession.findById(\"wnd[0]/usr/tabsTAB_GROUP_10/tabp10\\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_3:SAPLIQS0:7326/ctxtVIQMEL-QMNAM\").text = {{si_user}}\nsession.findById(\"wnd[0]/usr/tabsTAB_GROUP_10/tabp10\\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_4:SAPLIQS0:7330/cmbVIQMEL-PRIOK\").key = {{si_prior}}\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[1]/usr/btnBUTTON_1\").press\nsession.findById(\"wnd[0]/tbar[1]/btn[13]\").press",
+        "script_name": "IW21 Notification"
+      },
+      "si_create_workorder": {
+        "text": "Create Work Order",
+        "script": "session.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW31\"\nsession.findById(\"wnd[0]\").sendVKey 0\n' First-time workaround: only when the order-type field came up empty\nOn Error Resume Next\nsi_wo_art = session.findById(\"wnd[0]/usr/ctxtAUFPAR-PM_AUFART\").text\nOn Error GoTo 0\nIf si_wo_art = \"\" Then\nsession.findById(\"wnd[0]/usr/ctxtAUFPAR-PM_AUFART\").text = \"ZA03\"\nsession.findById(\"wnd[0]/tbar[1]/btn[16]\").press\nsession.findById(\"wnd[0]/tbar[0]/btn[15]\").press\nEnd If\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW31\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtAUFPAR-PM_AUFART\").text = {{si_wo_type}}\nsession.findById(\"wnd[0]/usr/cmbCAUFVD-PRIOK\").key = {{si_prior}}\nsession.findById(\"wnd[0]/usr/subOBJECT:SAPLCOIH:7100/ctxtCAUFVD-TPLNR\").text = {{si_floc}}\nsession.findById(\"wnd[0]/tbar[1]/btn[16]\").press\n' Screen 2\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKZ/ssubSUB_AUFTRAG:SAPLCOIH:1120/subHEADER:SAPLCOIH:0154/ctxtCAUFVD-INGPR\").text = {{si_pg}}\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKZ/ssubSUB_AUFTRAG:SAPLCOIH:1120/subHEADER:SAPLCOIH:0154/ctxtCAUFVD-VAPLZ\").text = {{si_wp}}\nOn Error Resume Next\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nOn Error GoTo 0\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKZ/ssubSUB_AUFTRAG:SAPLCOIH:1120/subHEADER:SAPLCOIH:0154/ctxtCAUFVD-ILART\").text = {{si_wo_key}}\nOn Error Resume Next\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nOn Error GoTo 0\n' User tab\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKZ/ssubSUB_AUFTRAG:SAPLCOIH:1120/subNOTIFICATION_DATA:SAPLIQS0:7010/tabsTSTRIP_7010/tabp$TS03\").select\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKZ/ssubSUB_AUFTRAG:SAPLCOIH:1120/subNOTIFICATION_DATA:SAPLIQS0:7010/tabsTSTRIP_7010/tabp$TS03/ssubTSTRIP_SCREEN:SAPLIQS0:7040/ctxtVIQMEL-QMNAM\").text = {{si_user}}\n' Text\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/subSUB_TEXT:SAPLCOIH:1103/cntlLTEXT/shell\").text = {{si_wo_text}}\n' Revision\nIf {{si_rev}} <> \"\" Then\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKZ/ssubSUB_AUFTRAG:SAPLCOIH:1120/subTERM:SAPLCOIH:7300/ctxtCAUFVD-REVNR\").text = {{si_rev}}\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKZ/ssubSUB_AUFTRAG:SAPLCOIH:1120/subTERM:SAPLCOIH:7300/ctxtCAUFVD-REVNR\").setFocus\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKZ/ssubSUB_AUFTRAG:SAPLCOIH:1120/subTERM:SAPLCOIH:7300/ctxtCAUFVD-GSTRP\").setFocus\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKZ/ssubSUB_AUFTRAG:SAPLCOIH:1120/subTERM:SAPLCOIH:7300/ctxtCAUFVD-GSTRP\").caretPosition = 6\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKZ/ssubSUB_AUFTRAG:SAPLCOIH:1120/subHEADER:SAPLCOIH:0154/btnICON_NTF\").press\nsession.findById(\"wnd[0]/usr/tabsTAB_GROUP_10/tabp10\\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_4:SAPLIQS0:7330/ctxtVIQMEL-REVNR\").text = \"\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/tbar[0]/btn[3]\").press\nEnd If\n' 60RE release\nIf {{si_ustatus}} = \"60RE\" Then\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/btn%#AUTOTEXT001\").press\nsession.findById(\"wnd[1]/usr/tblSAPLBSVATC_E/radJ_STMAINT-ANWS[0,5]\").selected = True\nsession.findById(\"wnd[1]/usr/tblSAPLBSVATC_E/radJ_STMAINT-ANWS[0,5]\").setFocus\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nEnd If",
+        "script_name": "IW31 Work Order"
+      },
+      "si_upload_pic": {
+        "text": "Upload Picture",
+        "script": "session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD\").select\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").pressToolbarButton \"CREATE&ASSIGN\"\nsession.findById(\"wnd[1]/usr/sub:SAPLSPO4:0300/txtSVALD-VALUE[2,21]\").text = {{si_pic_name}}\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nsession.findById(\"wnd[1]/usr/ctxtDY_PATH\").text = {{si_pic_folder}}\nsession.findById(\"wnd[1]/usr/ctxtDY_FILENAME\").text = {{si_pic_filename}}\nsession.findById(\"wnd[1]/usr/ctxtDY_FILENAME\").caretPosition = 40\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nOn Error Resume Next\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nOn Error GoTo 0\n{{ si_pic_uploaded }} = \"/OK/\"",
+        "script_name": "Upload Picture to WO"
+      },
+      "prh_download_attach": {
+        "text": "Download Attachment",
+        "script": "' Download one attachment from IW32 IHKD (Print Orders pattern)\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").currentCellColumn = \"DOKNR\"\n\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").currentCellRow = {{prh_dl_row}}\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").clickCurrentCell\nsession.findById(\"wnd[0]/mbar/menu[5]/menu[5]\").select\nsession.findById(\"wnd[1]/usr/ctxtDRAW-FILEP\").text = {{prh_dl_target}}\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nsession.findById(\"wnd[0]/tbar[0]/btn[3]\").press\n{{ export_done }} = \"1\"",
+        "script_name": "Download Attachment"
+      },
+      "si_save_notification": {
+        "script_name": "Save Notification",
+        "text": "Save Notification",
+        "script": "session.findById(\"wnd[0]/tbar[0]/btn[11]\").press\nsbar_text = session.findById(\"wnd[0]/sbar\").text\nsbar_type = session.findById(\"wnd[0]/sbar\").MessageType\n{{ si_sbar_text }} = sbar_text\n{{ si_sbar_type }} = sbar_type\n{{ si_notif_number }} = sbar_text"
+      },
+      "si_finalize_workorder": {
+        "script_name": "Save Work Order",
+        "text": "Save Work Order",
+        "script": "session.findById(\"wnd[0]/tbar[1]/btn[25]\").press\nsession.findById(\"wnd[0]/tbar[0]/btn[11]\").press\nsbar_text = session.findById(\"wnd[0]/sbar\").text\nsbar_type = session.findById(\"wnd[0]/sbar\").MessageType\n{{ si_sbar_text }} = sbar_text\n{{ si_sbar_type }} = sbar_type"
+      },
+      "si_upload_pic_notification": {
+        "script_name": "Upload Picture to Notification",
+        "text": "Upload Picture to Notification",
+        "script": "session.findById(\"wnd[0]/usr/tabsTAB_GROUP_10/tabp10\\TAB01\").select\nsession.findById(\"wnd[0]/usr/tabsTAB_GROUP_10/tabp10\\TAB01/ssubSUB_GROUP_10:SAPLIQS0:7235/subCUSTOM_SCREEN:SAPLIQS0:7212/subSUBSCREEN_2:SAPLIQS0:7801/ssubDVS:SAPLCV140:0204/subDOC_ALV:SAPLCV140:0206/cntlALV_CUST_DOC/shellcont/shell\").pressToolbarButton \"ICON_CREATE\"\nsession.findById(\"wnd[1]/usr/sub:SAPLSPO4:0300/txtSVALD-VALUE[2,21]\").text = {{si_pic_name}}\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nsession.findById(\"wnd[1]/usr/ctxtDY_PATH\").text = {{si_pic_folder}}\nsession.findById(\"wnd[1]/usr/ctxtDY_FILENAME\").text = {{si_pic_filename}}\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nOn Error Resume Next\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nOn Error GoTo 0\n{{ si_pic_uploaded }} = \"/OK/\""
+      },
+      "si_open_in_sap": {
+        "script_name": "Open in SAP",
+        "text": "Open in SAP",
+        "script": "' Open the created document in SAP: notification -> IW22, work order -> IW32\nIf {{si_sap_kind}} = \"notification\" Then\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW22\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtRIWO00-QMNUM\").text = {{si_sap_number}}\nsession.findById(\"wnd[0]\").sendVKey 0\nElseIf {{si_sap_kind}} = \"workorder\" Then\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = {{si_sap_number}}\nsession.findById(\"wnd[0]\").sendVKey 0\nEnd If"
+      }
+    },
+    "textinput": {
+      "toolbar_qo1": {
+        "var_name": "workorder",
+        "default_value": ""
+      },
+      "toolbar_qo2": {
+        "var_name": "melding",
+        "default_value": ""
+      },
+      "toolbar_qo3": {
+        "var_name": "revisie",
+        "default_value": ""
+      },
+      "prh_lookup_entry": {
+        "var_name": "order",
+        "default_value": "4178736"
+      },
+      "atb_txz01": {
+        "var_name": "txz01",
+        "default_value": "ktekst"
+      },
+      "atb_menge": {
+        "var_name": "menge",
+        "default_value": "1"
+      },
+      "atb_meins": {
+        "var_name": "meins",
+        "default_value": "PE"
+      },
+      "atb_eeind": {
+        "var_name": "eeind",
+        "default_value": "20.07.2026"
+      },
+      "atb_wgbbez": {
+        "var_name": "wgbbez",
+        "default_value": "AN-OH"
+      },
+      "atb_name1": {
+        "var_name": "name1",
+        "default_value": "BE21"
+      },
+      "atb_lgobe": {
+        "var_name": "lgobe",
+        "default_value": "1800"
+      },
+      "atb_ekgrp": {
+        "var_name": "ekgrp",
+        "default_value": "053"
+      },
+      "atb_afnam": {
+        "var_name": "afnam",
+        "default_value": ""
+      },
+      "atb_lifnr": {
+        "var_name": "lifnr",
+        "default_value": "15460"
+      },
+      "atb_ekorg": {
+        "var_name": "ekorg",
+        "default_value": "A020"
+      },
+      "atb_sakto": {
+        "var_name": "sakto",
+        "default_value": "61110100"
+      },
+      "atb_aufnr": {
+        "var_name": "aufnr",
+        "default_value": "4176589"
+      },
+      "atb_elpei": {
+        "var_name": "elpei",
+        "default_value": "D"
+      },
+      "atb_ktext1": {
+        "var_name": "ktext1",
+        "default_value": ""
+      },
+      "os_order_type_var": {
+        "var_name": "os_order_type",
+        "default_value": ""
+      },
+      "os_eqfnr_var": {
+        "var_name": "os_eqfnr",
+        "default_value": ""
+      },
+      "os_text_var": {
+        "var_name": "os_text",
+        "default_value": ""
+      },
+      "os_workplace_var": {
+        "var_name": "os_workplace",
+        "default_value": "EX-BELTZ"
+      },
+      "os_status_var": {
+        "var_name": "os_status",
+        "default_value": ""
+      },
+      "os_date_from_var": {
+        "var_name": "os_date_from",
+        "default_value": ""
+      },
+      "os_date_to_var": {
+        "var_name": "os_date_to",
+        "default_value": ""
+      },
+      "os_ingrp_var": {
+        "var_name": "os_ingrp",
+        "default_value": "WP1"
+      },
+      "os_tplnr_var": {
+        "var_name": "os_tplnr",
+        "default_value": ""
+      },
+      "os_revnr_var": {
+        "var_name": "os_revnr",
+        "default_value": ""
+      },
+      "os_arbpl_var": {
+        "var_name": "os_arbpl",
+        "default_value": ""
+      },
+      "po_export_path": {
+        "var_name": "po_export_path",
+        "default_value": "C:\\temp\\po_export"
+      },
+      "si_pg": {
+        "var_name": "si_pg",
+        "default_value": "WP1"
+      },
+      "si_upload_pics": {
+        "var_name": "si_upload_pics",
+        "default_value": "YES"
+      },
+      "si_system": {
+        "var_name": "si_system",
+        "default_value": "PRD400"
+      }
+    },
+    "headers": {
+      "toolbar_qo1": {
+        "text": "Werkorder"
+      },
+      "toolbar_qo2": {
+        "text": "Melding"
+      },
+      "toolbar_qo3": {
+        "text": "Revisie"
+      },
+      "prh_lookup_entry": {
+        "text": "Order"
+      },
+      "prh_order_search_btn": {
+        "text": "Search Orders",
+        "script_name": "Find Order (IW38)"
+      },
+      "prh_grid_header": {
+        "text": "ATB's for order"
+      },
+      "atb_form_header": {
+        "text": "Add ATB to order"
+      },
+      "toolbar_qo1_header": {
+        "text": "Quick Open1"
+      },
+      "atb_txz01_header": {
+        "text": "Description"
+      },
+      "atb_menge_header": {
+        "text": "Quantity"
+      },
+      "atb_meins_header": {
+        "text": "Unit"
+      },
+      "atb_eeind_header": {
+        "text": "Delivery Date"
+      },
+      "atb_wgbbez_header": {
+        "text": "Material Group"
+      },
+      "atb_name1_header": {
+        "text": "Plant Name"
+      },
+      "atb_lgobe_header": {
+        "text": "Storage Location"
+      },
+      "atb_ekgrp_header": {
+        "text": "Purchasing Group"
+      },
+      "atb_afnam_header": {
+        "text": "Requisitioner"
+      },
+      "atb_lifnr_header": {
+        "text": "Vendor"
+      },
+      "atb_ekorg_header": {
+        "text": "Purchasing Org"
+      },
+      "atb_sakto_header": {
+        "text": "G/L Account"
+      },
+      "atb_aufnr_header": {
+        "text": "Order Number"
+      },
+      "atb_elpei_header": {
+        "text": "Delivery Category"
+      },
+      "atb_ktext1_header": {
+        "text": "Service Text"
+      },
+      "si_pg_header": {
+        "text": "Planner Group"
+      },
+      "si_upload_pics_header": {
+        "text": "Upload Pics"
+      },
+      "si_system_header": {
+        "text": "SAP System"
+      }
+    },
+    "datagridview": {
+      "prh_lookup_grid": {
+        "visible_columns": [
+          "AanvDt.",
+          "ATB",
+          "Lev.dat.",
+          "P",
+          "Artikel",
+          "Korte tekst",
+          "Hoeveelh.",
+          "HE",
+          "Vest",
+          "Mag.",
+          "Vaste lev.",
+          "Aant. ATBs",
+          "Bew.status",
+          "Naam van leverancier",
+          "Gewenste leverancier",
+          "Aanschafbron (in extern formaat)"
+        ],
+        "column_order": [
+          "AanvDt.",
+          "ATB",
+          "Pos.",
+          "Lev.dat.",
+          "S",
+          "R",
+          "P",
+          "Artikel",
+          "Korte tekst",
+          "Hoeveelh.",
+          "HE",
+          "Vest",
+          "Mag.",
+          "Vaste lev.",
+          "Leveranc.",
+          "Aant. ATBs",
+          "BHE",
+          "BestDatum",
+          "Totl. wrd.",
+          "Per",
+          "Aanvrager",
+          "Bew.status",
+          "DSrt",
+          "Plan.",
+          "Bestelling",
+          "Lev.datum",
+          "IKG",
+          "IkOr",
+          "Gecreerd",
+          "A",
+          "Gew. lev.",
+          "Gew.lever.",
+          "GG",
+          "Aanschafbron",
+          "Naam van leverancier",
+          "Gewenste leverancier",
+          "Aanschafbron (in extern formaat)"
+        ],
+        "column_display_names": {
+          "AanvDt.": "AanvDt.",
+          "ATB": "ATB",
+          "Pos.": "Pos.",
+          "Lev.dat.": "Lev.dat.",
+          "S": "S",
+          "R": "R",
+          "P": "GOODS?",
+          "Artikel": "Artikel",
+          "Korte tekst": "Korte tekst",
+          "Hoeveelh.": "Hoeveelh.",
+          "HE": "HE",
+          "Vest": "Vest",
+          "Mag.": "Mag.",
+          "Vaste lev.": "Vaste lev.",
+          "Leveranc.": "Leveranc.",
+          "Aant. ATBs": "Aant. ATBs",
+          "BHE": "BHE",
+          "BestDatum": "BestDatum",
+          "Totl. wrd.": "Totl. wrd.",
+          "Per": "Per",
+          "Aanvrager": "Aanvrager",
+          "Bew.status": "Bew.status",
+          "DSrt": "DSrt",
+          "Plan.": "Plan.",
+          "Bestelling": "Bestelling",
+          "Lev.datum": "Lev.datum",
+          "IKG": "IKG",
+          "IkOr": "IkOr",
+          "Gecreerd": "Gecreerd",
+          "A": "A",
+          "Gew. lev.": "Gew. lev.",
+          "Gew.lever.": "Gew.lever.",
+          "GG": "GG",
+          "Aanschafbron": "Aanschafbron",
+          "Naam van leverancier": "Naam van leverancier",
+          "Gewenste leverancier": "Gewenste leverancier",
+          "Aanschafbron (in extern formaat)": "Aanschafbron (in extern formaat)"
+        }
+      },
+      "os_results_grid": {
+        "visible_columns": [
+          "Sel.",
+          "Gebr.stat.",
+          "Ver.WerkPl",
+          "P",
+          "Srt",
+          "OPS",
+          "Order",
+          "Functieplaats",
+          "Inv.datum",
+          "Omschrijving",
+          "Systeemstatus",
+          "Auteur",
+          "Revisie",
+          "Bewerker"
+        ],
+        "column_order": [
+          "Sel.",
+          "Gebr.stat.",
+          "Ver.WerkPl",
+          "P",
+          "Srt",
+          "OPS",
+          "Order",
+          "Functieplaats",
+          "Inv.datum",
+          "Omschrijving",
+          "Systeemstatus",
+          "Auteur",
+          "Revisie",
+          "Bewerker"
+        ],
+        "column_display_names": {
+          "Sel.": "Sel.",
+          "Gebr.stat.": "Gebr.stat.",
+          "Ver.WerkPl": "Ver.WerkPl",
+          "P": "P",
+          "Srt": "Srt",
+          "OPS": "OPS",
+          "Order": "Order",
+          "Functieplaats": "Functieplaats",
+          "Inv.datum": "Inv.datum",
+          "Omschrijving": "Omschrijving",
+          "Systeemstatus": "Systeemstatus",
+          "Auteur": "Auteur",
+          "Revisie": "Revisie",
+          "Bewerker": "Bewerker"
+        }
+      },
+      "po_orders_grid": {
+        "visible_columns": [
+          "Gebr.stat.",
+          "Ver.WerkPl",
+          "P",
+          "Srt",
+          "OPS",
+          "Order",
+          "Functieplaats",
+          "Inv.datum",
+          "Omschrijving",
+          "Systeemstatus",
+          "Auteur",
+          "Revisie",
+          "Bewerker",
+          "Filename",
+          "Metadata",
+          "Size",
+          "Status",
+          "Type"
+        ],
+        "column_order": [
+          "Sel.",
+          "Gebr.stat.",
+          "Ver.WerkPl",
+          "P",
+          "Srt",
+          "OPS",
+          "Order",
+          "Functieplaats",
+          "Inv.datum",
+          "Omschrijving",
+          "Systeemstatus",
+          "Auteur",
+          "Revisie",
+          "Filename",
+          "Bewerker",
+          "Metadata",
+          "Size",
+          "Status",
+          "Type"
+        ],
+        "column_display_names": {
+          "Sel.": "Sel.",
+          "Gebr.stat.": "Gebr.stat.",
+          "Ver.WerkPl": "Ver.WerkPl",
+          "P": "P",
+          "Srt": "Srt",
+          "OPS": "OPS",
+          "Order": "Order",
+          "Functieplaats": "Functieplaats",
+          "Inv.datum": "Inv.datum",
+          "Omschrijving": "Omschrijving",
+          "Systeemstatus": "Systeemstatus",
+          "Auteur": "Auteur",
+          "Revisie": "Revisie",
+          "Bewerker": "Bewerker",
+          "Filename": "Filename",
+          "Metadata": "Metadata",
+          "Size": "Size",
+          "Status": "Status",
+          "Type": "Type"
+        }
+      },
+      "si_import_grid": {
+        "visible_columns": [
+          "Auto",
+          "Status",
+          "_id",
+          "PG",
+          "FLOC",
+          "WP",
+          "STEXT",
+          "WO_TYPE",
+          "WO_KEY",
+          "PRIOR",
+          "WO",
+          "USTATUS",
+          "REV"
+        ],
+        "column_order": [
+          "Auto",
+          "Status",
+          "_id",
+          "PG",
+          "FLOC",
+          "WP",
+          "STEXT",
+          "WO_TYPE",
+          "WO_KEY",
+          "PRIOR",
+          "WO",
+          "USTATUS",
+          "PICS",
+          "REV",
+          "SAP_NUMBER",
+          "USER",
+          "LTEXT",
+          "Bericht"
+        ],
+        "column_display_names": {
+          "Status": "Status",
+          "_id": "_id",
+          "PG": "PG",
+          "FLOC": "FLOC",
+          "WP": "WP",
+          "STEXT": "STEXT",
+          "WO_TYPE": "WO_TYPE",
+          "WO_KEY": "WO_KEY",
+          "PRIOR": "PRIOR",
+          "WO": "WO",
+          "USTATUS": "USTATUS",
+          "PICS": "PICS",
+          "REV": "REV",
+          "SAP_NUMBER": "SAP #",
+          "USER": "USER",
+          "LTEXT": "LTEXT",
+          "Bericht": "Bericht",
+          "Auto": "Auto"
+        }
+      }
+    }
+  }
+}

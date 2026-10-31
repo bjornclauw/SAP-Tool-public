@@ -1,0 +1,81 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# IDE / tooling
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+desktop.ini
+pyrightconfig.json
+
+# AI tooling (local only)
+.opencode/
+.agents/
+skills-lock.json
+docs/agents/
+
+# Local secrets / environment overrides
+.env
+.env.*
+!.env.example
+
+# Temp and backup files (config saves use <name>.tmp)
+*.tmp
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Private per-machine files (never commit)
+private/
+
+# Project specific
+nul
+data/si_queue.json
+data/revisions.json
+data/si_grid.json
+data/si_options.json
+data/user_settings.json
+data/user_toolbar.json
+
+# SAP export files (used by PRH tool)
+tempexport/
+
+# Print Orders tool export (resolved at runtime)
+{{po_export_path}}/
+
+# User working files
+tmp_user/
+
+# Local ATB history (per-machine, personal data)
+data/atb_history.json
+
+# CodeGraph index (local cache)
+.codegraph/
+
+# Portable Python (untracked, ~100MB+ binaries)
+python/
+
+# Portable Git (untracked, runtime only)
+git/
