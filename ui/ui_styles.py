@@ -89,7 +89,7 @@ FONTS: dict[str, tuple] = {
 TOOL_COLORS: dict[str, str] = {
     "purchase_request": "#e8963f",  # orange
     "print_orders": "#00796b",  # teal
-    "sap_import": "#4c7d5b",  # neutral sage green
+    "sap_import": "#5c6bc0",  # indigo
     "order_searcher": "#2e7d32",  # green
     "vendor_manager": "#795548",  # brown
 }

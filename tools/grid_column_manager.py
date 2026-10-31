@@ -121,6 +121,53 @@ class GridColumnManager:
             self.status_label.config(text=message)
 
     # ---- apply ---------------------------------------------------------
+    def add_row(self, values: dict) -> bool:
+        """Append one row to the current export table.
+
+        ``values`` is keyed by live or configured column name; unknown keys
+        are ignored. Used to show a just-created ATB without re-running the
+        SAP export. Returns False when no lookup has supplied columns yet.
+        """
+        if not self.available_columns:
+            return False
+
+        key_header = self._find_header(self.available_columns, "ATB")
+        key_value = ""
+        if key_header is not None:
+            key_value = str(
+                next(
+                    (v for k, v in values.items()
+                     if self._norm(k) == self._norm(key_header)),
+                    "",
+                )
+            )
+            if key_value:
+                key_idx = self.available_columns.index(key_header)
+                if any(
+                    key_idx < len(row) and row[key_idx] == key_value
+                    for row in self._stored_rows
+                ):
+                    return False
+
+        norm_to_live = {self._norm(h): h for h in self.available_columns}
+        display_names = cfg.get_grid_cfg(
+            self.config_data, self.config_key
+        ).get("column_display_names") or {}
+        for name, label in display_names.items():
+            live = norm_to_live.get(self._norm(name))
+            if live is not None:
+                norm_to_live.setdefault(self._norm(label), live)
+
+        row = dict.fromkeys(self.available_columns, "")
+        for name, value in values.items():
+            live = norm_to_live.get(self._norm(name))
+            if live is not None:
+                row[live] = "" if value is None else str(value)
+
+        self._stored_rows.append([row[h] for h in self.available_columns])
+        self._apply_columns(self.available_columns)
+        return True
+
     def _apply_columns(self, all_headers: list[str]) -> None:
         if not self._stored_rows or not all_headers:
             return

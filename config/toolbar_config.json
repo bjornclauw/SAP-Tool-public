@@ -78,12 +78,12 @@
       },
       "prh_open_atb_btn": {
         "text": "Open ATB",
-        "script": "' Display a purchase requisition in ME53N\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nME53N\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[0]\").select\nsession.findById(\"wnd[1]/usr/subSUB0:SAPLMEGUI:0003/ctxtMEPO_SELECT-BANFN\").text = {{prh_atb_number}}\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press",
+        "script": "' Display a purchase requisition in ME53N\nsession.findById(\"wnd[0]\").maximize\nsession.findById(\"wnd[0]\").setFocus\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nME53N\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[0]\").select\nsession.findById(\"wnd[1]/usr/subSUB0:SAPLMEGUI:0003/ctxtMEPO_SELECT-BANFN\").text = {{prh_atb_number}}\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press",
         "script_name": "Display Purchase Requisition (ME53N)"
       },
       "prh_open_order_btn": {
         "text": "Open Order",
-        "script": "' Open a work order in IW32 (history double-click)\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = {{order}}\nsession.findById(\"wnd[0]\").sendVKey 0",
+        "script": "' Open a work order in IW32 (history double-click)\nsession.findById(\"wnd[0]\").maximize\nsession.findById(\"wnd[0]\").setFocus\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = {{order}}\nsession.findById(\"wnd[0]\").sendVKey 0",
         "script_name": "Open Order in IW32"
       },
       "prh_order_meta_btn": {
@@ -228,7 +228,7 @@
       "si_open_in_sap": {
         "script_name": "Open in SAP",
         "text": "Open in SAP",
-        "script": "' Open the created document in SAP: notification -> IW22, work order -> IW32\nIf {{si_sap_kind}} = \"notification\" Then\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW22\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtRIWO00-QMNUM\").text = {{si_sap_number}}\nsession.findById(\"wnd[0]\").sendVKey 0\nElseIf {{si_sap_kind}} = \"workorder\" Then\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = {{si_sap_number}}\nsession.findById(\"wnd[0]\").sendVKey 0\nEnd If"
+        "script": "' Open the created document in SAP: notification -> IW22, work order -> IW32\nsession.findById(\"wnd[0]\").maximize\nsession.findById(\"wnd[0]\").setFocus\nIf {{si_sap_kind}} = \"notification\" Then\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW22\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtRIWO00-QMNUM\").text = {{si_sap_number}}\nsession.findById(\"wnd[0]\").sendVKey 0\nElseIf {{si_sap_kind}} = \"workorder\" Then\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = {{si_sap_number}}\nsession.findById(\"wnd[0]\").sendVKey 0\nEnd If"
       }
     },
     "textinput": {

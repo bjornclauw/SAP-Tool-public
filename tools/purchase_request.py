@@ -65,6 +65,13 @@ ATB_FIELDS = [
 # full-width rows above the grid -- see _build_right_panel).
 ATB_GRID_FIELDS = ATB_FIELDS[2:]
 
+# Set once (plant/location/accounting defaults) and rarely touched again.
+# They live in a collapsed Advanced settings callout instead of the main grid.
+ADVANCED_ATB_FIELDS = {
+    "atb_name1", "atb_lgobe", "atb_ekgrp",
+    "atb_ekorg", "atb_wgbbez", "atb_sakto",
+}
+
 # ---------------------------------------------------------------------------
 # _VendorSearchBox -- entry + a dropdown list owned by us, not ttk.
 #
@@ -409,6 +416,9 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
         # clean) so recordings pair an order with its own date/workplace.
         self._history = AtbHistoryStore()
         self._last_order_meta: dict = {}
+        # Order whose rows the left overview grid currently shows; a created
+        # ATB is appended only when it belongs to that same order.
+        self._grid_order: str | None = None
         self._pending_attach_open: dict | None = None
         # Throttle clock for the 40-char SAP cap warnings (see _cap_validate).
         self._cap_warned_at = 0.0
@@ -766,7 +776,7 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
             height=6,
             style="AttTreeview.Treeview",
         )
-        self._attachments_tree.heading("doc_nr", text="Doc. Nr.")
+        self._attachments_tree.heading("doc_nr", text="Doc. Type")
         self._attachments_tree.heading("description", text="Description")
         self._attachments_tree.heading("filename", text="Filename")
         self._attachments_tree.heading("status", text="Status")
@@ -1023,10 +1033,34 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
         self.vendor_entry.pack(side="left")
         self.vendor_entry.config(font=ui_styles.FONTS["body"])
 
-        # --- 2-column grid for remaining fields (fixed height: the history
-        # zone below owns all expansion so the buttons hug the fields) ---
+        # --- 2-column grid for the per-order fields (fixed height: the
+        # history zone below owns all expansion so the buttons hug the fields)
         atb_grid = styled_frame(form_body)
         atb_grid.pack(fill="x", expand=False, padx=0, pady=ui_styles.SPACING["tight"])
+
+        # Rarely-changed defaults live in a collapsed callout. The header
+        # turns red (and the callout refuses to close) while any is empty.
+        self._advanced_section = styled_frame(form_body)
+        self._advanced_section.pack(
+            fill="x", padx=0, pady=(0, ui_styles.SPACING["tight"]))
+        self._advanced_toggle = tk.Button(
+            self._advanced_section,
+            text="▸ Advanced settings",
+            command=self._toggle_advanced,
+            font=ui_styles.FONTS["header"],
+            bg=ui_styles.COLORS["bg"],
+            fg=ui_styles.COLORS["text"],
+            activebackground=ui_styles.COLORS["bg"],
+            activeforeground=ui_styles.COLORS["text"],
+            relief="flat", bd=0, highlightthickness=0,
+            anchor="w", cursor="hand2",
+        )
+        self._advanced_toggle.pack(fill="x")
+        self._advanced_body = styled_frame(self._advanced_section)
+        advanced_grid = styled_frame(self._advanced_body)
+        advanced_grid.pack(fill="x", padx=0, pady=ui_styles.SPACING["tight"])
+        self._advanced_open = False
+        self._advanced_vars: dict[str, tk.StringVar] = {}
 
         self._atb_entries: list = []
         self._atb_headers: list[CustomLabel] = []
@@ -1048,9 +1082,20 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
         ttk.Style().configure(date_style, font=ui_styles.FONTS["body"])
         self._delivery_base_style = date_style
 
-        for idx, (config_key, label_text) in enumerate(ATB_GRID_FIELDS):
-            row_idx = idx // 2  # 2 fields per row
-            field_in_row = idx % 2  # 0 or 1
+        normal_idx = 0
+        advanced_idx = 0
+        for config_key, label_text in ATB_GRID_FIELDS:
+            is_advanced = config_key in ADVANCED_ATB_FIELDS
+            if is_advanced:
+                grid = advanced_grid
+                slot = advanced_idx
+                advanced_idx += 1
+            else:
+                grid = atb_grid
+                slot = normal_idx
+                normal_idx += 1
+            row_idx = slot // 2  # 2 fields per row
+            field_in_row = slot % 2  # 0 or 1
 
             # Each field occupies 2 columns: header (col 0/2) + entry (col 1/3)
             col_start = field_in_row * 2
@@ -1059,7 +1104,7 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
             header_cfg = cfg.get_header_cfg(self.config_data, f"{config_key}_header")
             header_text = header_cfg.get("text", label_text)
             header = CustomLabel(
-                atb_grid,
+                grid,
                 "headers",
                 f"{config_key}_header",
                 text=header_text,
@@ -1083,11 +1128,13 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
             # would use). It has no CustomEntry._var, so _clear_atb_fields
             # re-syncs it via _sync_delivery_date() instead of the loop.
             var = self.bind_entry(config_key)
+            if is_advanced:
+                self._advanced_vars[config_key] = var
 
             if config_key == "atb_eeind":
                 self._delivery_var = var
                 entry = AutoClosingDateEntry(
-                    atb_grid, textvariable=var,
+                    grid, textvariable=var,
                     date_pattern="dd.MM.yyyy", width=12,
                     style=date_style,
                 )
@@ -1106,7 +1153,7 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
                 self._atb_entries.append(entry)
                 continue
 
-            entry = CustomEntry(atb_grid, "textinput", config_key, textvariable=var, width=12)
+            entry = CustomEntry(grid, "textinput", config_key, textvariable=var, width=12)
             # Service Text is the odd field out (9 fields, 2 per row): it
             # spans cols 1-2 with a 40-char SAP counter in col 3, instead of
             # dangling in the row's left half. grid_remove/grid keeps this
@@ -1128,16 +1175,25 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
                 self._service_text_header = header
                 self._service_text_entry = entry
                 self._service_counter = styled_label(
-                    atb_grid, "", font=ui_styles.FONTS["small"],
+                    grid, "", font=ui_styles.FONTS["small"],
                     fg=ui_styles.COLORS["text_secondary"], bg=ui_styles.COLORS["bg"],
                 )
                 self._service_counter.grid(row=row_idx, column=3, sticky="e",
                                            padx=(4, 0), pady=ui_styles.SPACING["tight"])
                 self._install_length_cap(entry, 40, self._service_counter, "Service Text")
 
-        # Configure grid: 4 columns, entries expand, headers fixed
+        # Configure grids: 4 columns, entries expand, headers fixed
         for c in range(4):
-            atb_grid.grid_columnconfigure(c, weight=1 if c % 2 == 1 else 0)
+            weight = 1 if c % 2 == 1 else 0
+            atb_grid.grid_columnconfigure(c, weight=weight)
+            advanced_grid.grid_columnconfigure(c, weight=weight)
+
+        # Watch the rare-change fields: red header + cannot close while empty.
+        for config_key in ADVANCED_ATB_FIELDS:
+            var_name = cfg.get_textinput_cfg(
+                self.config_data, config_key).get("var_name", config_key)
+            self.watch_engine_var(var_name, self._update_advanced_state)
+        self._set_advanced_open(False)
 
         # Delivery Date default: the order's date when one is selected,
         # else today (overrides the stale hardcoded config default).
@@ -1189,6 +1245,37 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
 
         # Apply initial Goods state (hide service text, set button text)
         self._sync_submit_button("")
+
+    # ---- advanced settings callout --------------------------------------
+    def _advanced_missing(self) -> bool:
+        """True while any once-set default field is empty."""
+        return any(
+            not (var.get() or "").strip()
+            for var in getattr(self, "_advanced_vars", {}).values()
+        )
+
+    def _set_advanced_open(self, is_open: bool) -> None:
+        """Open/close the callout; it refuses to close while a field is empty."""
+        missing = self._advanced_missing()
+        if missing:
+            is_open = True
+        self._advanced_open = is_open
+        if is_open and not self._advanced_body.winfo_manager():
+            self._advanced_body.pack(fill="x")
+        elif not is_open:
+            self._advanced_body.pack_forget()
+        fg = ui_styles.COLORS["error"] if missing else ui_styles.COLORS["text"]
+        self._advanced_toggle.config(
+            text=("▾ Advanced settings" if is_open else "▸ Advanced settings"),
+            fg=fg, activeforeground=fg,
+        )
+
+    def _toggle_advanced(self) -> None:
+        self._set_advanced_open(not self._advanced_open)
+
+    def _update_advanced_state(self, *_value) -> None:
+        if hasattr(self, "_advanced_toggle"):
+            self._set_advanced_open(self._advanced_open)
 
     # ---- supplier lookup -------------------------------------------------
     def _reload_suppliers(self):
@@ -1421,11 +1508,78 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
         self._history.ensure_order(
             order_nr, short_text=short_text, date=date, workplace=workplace
         )
+        self._seed_atbs_from_grid(order_nr)
         self._history.add_atb(
             order_nr, nr, kind, short_text=atb_text,
             vendor=vendor, vendor_name=vendor_name,
         )
         self._history_pane.refresh()
+        self._add_created_atb_to_grid(
+            order_nr, nr, atb_text, vendor, vendor_name
+        )
+
+    def _seed_atbs_from_grid(self, order_nr: str) -> None:
+        """Restore ATBs from the left overview when history has none.
+
+        Only trusted when the overview currently shows this same order; it
+        is still the SAP export the user is working from. Covers an order
+        whose old history entry rotated out or was never recorded.
+        """
+        if order_nr != getattr(self, "_grid_order", None):
+            return
+        columns = [str(c).strip().lower() for c in self.tree["columns"]]
+
+        def col(*names):
+            wanted = {name.strip().lower() for name in names}
+            return next(
+                (i for i, c in enumerate(columns) if c in wanted), None
+            )
+
+        atb_i = col("ATB")
+        if atb_i is None:
+            return
+        text_i = col("Korte tekst")
+        vendor_i = col("Vaste lev.", "Gewenste leverancier")
+        name_i = col("Naam van leverancier", "Leveranc.")
+
+        def value(values, idx):
+            return str(values[idx]).strip() if idx is not None and idx < len(values) else ""
+
+        atbs = []
+        for iid in self.tree.get_children():
+            values = self.tree.item(iid, "values")
+            nr = value(values, atb_i)
+            if not nr:
+                continue
+            atbs.append({
+                "nr": nr,
+                "short_text": value(values, text_i),
+                "vendor": value(values, vendor_i),
+                "vendor_name": value(values, name_i),
+            })
+        if atbs:
+            self._history.seed_atbs(order_nr, atbs)
+
+    def _add_created_atb_to_grid(self, order_nr: str, atb_nr: str,
+                                 atb_text: str, vendor: str,
+                                 vendor_name: str) -> None:
+        """Show a just-created ATB in the left overview without re-running
+        ME5A. Only when that grid currently belongs to the same order."""
+        if order_nr != getattr(self, "_grid_order", None):
+            return
+        self.grid_manager.add_row({
+            "AanvDt.": datetime.now().strftime("%d.%m.%Y"),
+            "ATB": atb_nr,
+            "Lev.dat.": self.engine.get_variable("eeind"),
+            "Korte tekst": atb_text,
+            "Hoeveelh.": "1",
+            "HE": "PE",
+            "Mag.": self.engine.get_variable("lgobe"),
+            "Aanvrager": self.engine.get_variable("afnam"),
+            "Vaste lev.": vendor,
+            "Naam van leverancier": vendor_name,
+            "Gewenste leverancier": vendor_name,
+        })
 
     def _record_upload(self, doc_nr: str, description: str, filename: str):
         """Persist a successful upload to history."""
@@ -1436,6 +1590,7 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
         self._history.ensure_order(
             order_nr, short_text=short_text, date=date, workplace=workplace
         )
+        self._seed_atbs_from_grid(order_nr)
         self._history.add_attachment(order_nr, doc_nr, description, filename)
         self._history_pane.refresh()
 
@@ -1512,6 +1667,7 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
         svc_default = cfg.get_textinput_cfg(self.config_data, "atb_ktext1").get("default_value", "")
         self._service_counter.configure(text=f"{len(svc_default)}/40")
 
+        self._update_advanced_state()
         self.report_status("ATB fields cleared", "info")
 
     # ---- order searcher -------------------------------------------------
@@ -1687,6 +1843,9 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
             # Summary/total rows carry no ATB number -- exclude them so the
             # grid holds only real purchase requisitions.
             self.grid_manager.populate_from_export(self._export_filepath, require_nonempty="ATB")
+            self._grid_order = (
+                self.engine.get_variable("order") or ""
+            ).strip() or None
             count = len(self.tree.get_children())
             cols = list(self.tree["columns"])
             first_status = (self.engine.get_variable("order_system_status") or "").split()
@@ -1728,6 +1887,7 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
             # failed ME5A export, so still refresh them; the failure message
             # is stashed in _pending_lookup_msg so the attachment refresh
             # can't silently overwrite it.
+            self._grid_order = None
             self.tree.delete(*self.tree.get_children())
             if hasattr(self, "grid_manager"):
                 self.grid_manager.clear()
@@ -2010,8 +2170,31 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
     def _on_refresh_attachments_clicked(self, event=None):
         self._read_attach_list()
 
+    def _selected_atb_vendor(self) -> str:
+        """Vendor name (or code) of the ATB selected in the overview grid."""
+        selection = self.tree.selection()
+        if not selection:
+            return ""
+        values = self.tree.item(selection[0], "values")
+        columns = [str(c).strip().lower() for c in self.tree["columns"]]
+
+        def value(*names):
+            for name in names:
+                key = name.strip().lower()
+                if key not in columns:
+                    continue
+                idx = columns.index(key)
+                if idx < len(values) and str(values[idx]).strip():
+                    return str(values[idx]).strip()
+            return ""
+
+        return value(
+            "Naam van leverancier", "Leveranc.",
+            "Gewenste leverancier", "Vaste lev.",
+        )
+
     def _show_upload_meta_popup(self, filename: str) -> tuple[str, str] | None:
-        """Show a popup asking for document number and description before upload.
+        """Show a popup asking for document type and description before upload.
         Returns (doc_nr, description) or None if cancelled."""
         popup = tk.Toplevel(self)
         popup.withdraw()
@@ -2020,16 +2203,25 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
         popup.grab_set()
         popup.resizable(False, False)
 
-        styled_label(popup, "Document number:").pack(padx=10, pady=(10, 0), anchor="w")
-        doc_var = tk.StringVar()
+        styled_label(popup, "Document type:").pack(padx=10, pady=(10, 0), anchor="w")
+        doc_var = tk.StringVar(value="PROFORMA")
         entry_doc = tk.Entry(popup, textvariable=doc_var, width=40, font=ui_styles.FONTS["body"])
         entry_doc.pack(padx=10, pady=(2, 8), fill="x")
-        entry_doc.focus_set()
 
         styled_label(popup, "Description:").pack(padx=10, anchor="w")
-        desc_var = tk.StringVar()
+        vendor = self._selected_atb_vendor()
+        desc_default = f"{vendor}_" if vendor else ""
+        desc_var = tk.StringVar(value=desc_default)
         entry_desc = tk.Entry(popup, textvariable=desc_var, width=40, font=ui_styles.FONTS["body"])
         entry_desc.pack(padx=10, pady=(2, 10), fill="x")
+        if desc_default:
+            # Selected ATB: let the user finish the description (e.g. FACTUUR)
+            # and press Enter straight away.
+            entry_desc.focus_set()
+            entry_desc.icursor("end")
+        else:
+            entry_doc.focus_set()
+            entry_doc.select_range(0, "end")
 
         result = None
 
@@ -2049,7 +2241,7 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
         cancel_btn = ui_styles.styled_button(btn_frame, "Cancel", command=on_cancel, width=10)
         cancel_btn.pack(side="left")
 
-        # Keyboard flow: Enter confirms (focus starts in Document number),
+        # Keyboard flow: Enter confirms (focus starts in Document type),
         # Escape cancels -- clicking is not the only way out.
         popup.bind("<Return>", lambda e: on_ok())
         popup.bind("<Escape>", lambda e: on_cancel())

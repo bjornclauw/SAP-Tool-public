@@ -1062,6 +1062,18 @@
     ],
     "prh_open_atb_btn": [
       {
+        "args": null,
+        "kind": "CALL_METHOD",
+        "member": "maximize",
+        "path": "wnd[0]"
+      },
+      {
+        "args": null,
+        "kind": "CALL_METHOD",
+        "member": "setFocus",
+        "path": "wnd[0]"
+      },
+      {
         "kind": "SET_PROPERTY",
         "member": "text",
         "path": "wnd[0]/tbar[0]/okcd",
@@ -1093,6 +1105,18 @@
       }
     ],
     "prh_open_order_btn": [
+      {
+        "args": null,
+        "kind": "CALL_METHOD",
+        "member": "maximize",
+        "path": "wnd[0]"
+      },
+      {
+        "args": null,
+        "kind": "CALL_METHOD",
+        "member": "setFocus",
+        "path": "wnd[0]"
+      },
       {
         "kind": "SET_PROPERTY",
         "member": "text",
@@ -1716,6 +1740,18 @@
       }
     ],
     "si_open_in_sap": [
+      {
+        "args": null,
+        "kind": "CALL_METHOD",
+        "member": "maximize",
+        "path": "wnd[0]"
+      },
+      {
+        "args": null,
+        "kind": "CALL_METHOD",
+        "member": "setFocus",
+        "path": "wnd[0]"
+      },
       {
         "kind": "SET_PROPERTY",
         "member": "text",

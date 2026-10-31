@@ -4,9 +4,12 @@ Replaces the native OS menu bar with a fully custom frame using Menubutton
 widgets. This gives complete control over styling (background, colors, fonts,
 hover effects) across all platforms.
 
+The dropdowns themselves are native ``tk.Menu`` popups. They are only used on
+the undocked toolbar; the docked toolbar uses its in-window helper rail
+instead, so no native menu ever competes with a topmost borderless owner.
+
 Usage:
     from custom_menu import CustomMenuBar
-
     menu_bar = CustomMenuBar(root)
     menu_bar.add_menu("Tools", [
         ("Purchase Request Helper", self._open_purchase_request),
@@ -47,17 +50,13 @@ class MenuBarItem:
 
 
 class CustomMenuBar:
-    """A fully custom menu bar built from frames and Menubuttons.
-
-    This replaces the native OS menu bar to allow complete styling control.
-    """
+    """A fully custom menu bar built from frames and Menubuttons."""
 
     def __init__(self, master: tk.Misc, height: int = 30):
         self.master = master
         self.height = height
         self._menus: dict[str, tk.Menu] = {}
 
-        # Create the menu bar frame
         self.frame = tk.Frame(
             master,
             bg=ui_styles.COLORS["bg"],
@@ -124,7 +123,6 @@ class CustomMenuBar:
 
     def add_menu(self, label: str, items: list[MenuBarItem] | list[tuple[str, Callable]]) -> None:
         """Add a dropdown menu to the menu bar."""
-        # Create Menubutton
         btn = tk.Menubutton(
             self.frame,
             text=label,
@@ -141,7 +139,6 @@ class CustomMenuBar:
         )
         btn.pack(side="left", fill="y")
 
-        # Create dropdown menu
         dropdown = tk.Menu(
             btn,
             tearoff=0,
@@ -155,14 +152,10 @@ class CustomMenuBar:
         )
         btn.config(menu=dropdown)
         self._menus[label] = dropdown
-
-        # Add items
         self._fill_menu(dropdown, items)
 
     def pack(self, **kwargs) -> None:
-        """Pack the menu bar frame."""
         self.frame.pack(**kwargs)
 
     def grid(self, **kwargs) -> None:
-        """Grid the menu bar frame."""
         self.frame.grid(**kwargs)

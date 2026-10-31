@@ -4,15 +4,18 @@ you might want to tweak later; read it from here instead.
 
 Two files, split by ownership:
 
-- ``config/toolbar_config.json`` (tracked): the app's shipped config. The main
+- ``config/toolbar_config.json`` (tracked): the app's shipped config. Main
   toolbar entries live here as stubs -- id, label, var name -- with no script.
-- ``data/user_toolbar.json`` (ignored): the user's main-toolbar customisations.
-  Only values that differ from the shipped stubs are stored, so shipped changes
-  still reach every button the user did not touch.
+  App-owned button scripts and power-user button edits also ship here.
+- ``data/user_toolbar.json`` (ignored): every per-machine end-user edit --
+  main-toolbar entries, plus any user-changed default value, label, or column
+  layout for the app and its tool windows. Only values that differ from the
+  shipped file are stored, so shipped changes still reach everything the user
+  did not touch.
 
-An entry whose id starts with ``toolbar_`` is user-owned; everything else is
-app-owned. ``load_config`` merges the two, ``save_config`` routes each edit back
-to the file it belongs in.
+``save_config`` routes scripts and power-user button edits to the tracked
+config, and every other user-edited value to the ignored user file. Updates
+hard-reset tracked files, so end-user preferences must never live there.
 
 Layout, however, is NOT config-driven on purpose (see sap_toolbar.py).
 """
@@ -42,7 +45,7 @@ def _resolve_user(path: Path | None) -> Path:
 
 
 def is_user_entry(entry_id: str) -> bool:
-    """Whether the main toolbar (and therefore the user) owns this entry."""
+    """Whether the main toolbar owns this entry's script."""
     return entry_id.startswith(USER_MAIN_PREFIX)
 
 
@@ -74,8 +77,9 @@ def load_config(path: Path | None = None, user_path: Path | None = None) -> dict
 def save_config(
     data: dict, path: Path | None = None, user_path: Path | None = None
 ) -> None:
-    """Write app-owned entries to the shipped config and toolbar edits to the
-    user file. The shipped config never receives a user script."""
+    """Write app-owned scripts/power-user button edits to the shipped config
+    and every end-user preference (defaults, labels, columns) to the ignored
+    user file. The shipped config never receives a main-toolbar user script."""
     if path is None and user_path is None and isinstance(
         data.get("customcomponents"), dict
     ):
@@ -135,7 +139,13 @@ def _diff(value: object, base: object) -> object:
 
 
 def _split(data: dict, shipped_path: Path) -> tuple[dict, dict]:
-    """Split a merged config into (app config to write, user overrides)."""
+    """Split a merged config into (app config to write, user overrides).
+
+    Main-toolbar entries stay wholly user-owned. Tool-window button edits are
+    power-user development changes and ship in the tracked config. Every other
+    user-changed field (defaults, labels, column layouts) goes to the ignored
+    user file.
+    """
     try:
         shipped = _read_json_file(shipped_path)
     except (OSError, ValueError):
@@ -155,13 +165,39 @@ def _split(data: dict, shipped_path: Path) -> tuple[dict, dict]:
         app_entries = app_components.setdefault(component_type, {})
         user_entries: dict = {}
         for entry_id, entry in entries.items():
-            if not is_user_entry(entry_id):
-                app_entries[entry_id] = copy.deepcopy(entry)
-                continue
             base = app_entries.get(entry_id, _MISSING)
-            difference = _diff(entry, base)
+            if is_user_entry(entry_id) or not isinstance(entry, dict):
+                difference = _diff(entry, base)
+                if difference is not _MISSING:
+                    user_entries[entry_id] = difference
+                continue
+
+            if component_type == "buttons":
+                # Tool-window buttons are power-user only; their edits are
+                # development changes and belong in the shipped config.
+                difference = _diff(entry, base)
+                if difference is not _MISSING:
+                    if isinstance(base, dict):
+                        app_entries[entry_id].update(copy.deepcopy(difference))
+                    else:
+                        app_entries[entry_id] = copy.deepcopy(entry)
+                continue
+
+            script = entry.get("script", _MISSING)
+            user_entry = {
+                key: value for key, value in entry.items() if key != "script"
+            }
+            difference = _diff(user_entry, base)
             if difference is not _MISSING:
                 user_entries[entry_id] = difference
+
+            # Scripts keep their existing ownership: app-owned entries ship.
+            if script is not _MISSING:
+                if not isinstance(base, dict):
+                    app_entries[entry_id] = {"script": script}
+                elif script != base.get("script", _MISSING):
+                    app_entries[entry_id]["script"] = script
+
         if user_entries:
             overrides["customcomponents"][component_type] = user_entries
     if not overrides["customcomponents"]:

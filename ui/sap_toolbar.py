@@ -33,6 +33,11 @@ from .ui_styles import (
     styled_label,
     styled_status_bar,
 )
+from .window_chrome import (
+    apply_titlebar_color,
+    center_on_toolbar,
+    correct_for_decorations,
+)
 
 QUICK_OPEN_GROUPS = [
     ("toolbar_qo1", "Quick Open 1"),
@@ -43,6 +48,19 @@ SHORTCUT_BUTTONS = [
     "toolbar_sc1", "toolbar_sc2", "toolbar_sc3", "toolbar_sc4",
     "toolbar_sc5", "toolbar_sc6",
 ]
+
+# Docked-mode helper rail: (tool key, badge, label, opener method, colour).
+HELPER_RAIL_ITEMS = [
+    ("purchase_request", "PR", "Purchase Request",
+     "_open_purchase_request", ui_styles.TOOL_COLORS["purchase_request"]),
+    ("print_orders", "PO", "Print Orders",
+     "_open_print_orders", ui_styles.TOOL_COLORS["print_orders"]),
+    ("sap_import", "SI", "SAP Import",
+     "_open_sap_import", ui_styles.TOOL_COLORS["sap_import"]),
+    ("revisions", "RR", "Revisions",
+     "_open_revisions_register", ui_styles.SUPPORT_COLOR),
+]
+HELPER_RAIL_WIDTH = 156
 # Quick-open fields holding SAP numbers (werkorder, melding): pasted
 # values get hardened to the digit run (see sanitize_sap_number).
 # Revisie (toolbar_qo3) is a free code -- leaders/whitespace stripped only.
@@ -73,6 +91,7 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         self.fake_sap = tk.BooleanVar(value=bool(settings.get("fake_sap", False)))
         self.always_on_top = tk.BooleanVar(value=bool(settings.get("always_on_top", False)))
         self.debug_mode = tk.BooleanVar(value=bool(settings.get("debug_mode", False)))
+        self.power_user = tk.BooleanVar(value=bool(settings.get("power_user", False)))
         self.show_console = tk.BooleanVar(
             value=bool(settings.get("show_console", False)) or console.has_console()
         )
@@ -113,11 +132,15 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         self._build_quick_open_row()
         self._build_shortcuts_row()
         self._build_apps_tray()
+        self._build_helper_rail()
         self._build_status_bar()
 
         self._set_app_icon()  # logo as window/taskbar icon, then reveal
         self._set_titlebar_color()  # Apply pywinstyles color, then reveal
         self.deiconify()
+        self.dock.dock_enabled.trace_add(
+            "write", lambda *_: self._apply_chrome_layout())
+        self._apply_chrome_layout()
         self.dock.apply()  # snap to top if dock was persisted
 
         self._start_polling()
@@ -164,6 +187,20 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             pady=(ui_styles.SPACING["comfortable"], ui_styles.SPACING["normal"]),
         )
         self._quick_open_row = row
+
+        # Docked-mode helper drawer toggle (hidden while undocked).
+        self._helper_toggle = tk.Button(
+            row,
+            text="☰",
+            font=ui_styles.FONTS["header"],
+            bg=ui_styles.COLORS["surface"],
+            fg=ui_styles.COLORS["text"],
+            activebackground=ui_styles.COLORS["surface_hover"],
+            activeforeground=ui_styles.COLORS["text"],
+            relief="flat", bd=0, highlightthickness=0,
+            padx=4, pady=0, cursor="hand2",
+            command=self._toggle_helper_rail,
+        )
 
         # Brand home: the logo fronts the quick-open row, left of the
         # Werkorder field, and parents the open-helper tray -- the tray
@@ -359,6 +396,216 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             )
             self._open_chip_close[key] = closer
         self._refresh_open_apps(animate=False)
+
+    # ---- docked helper rail --------------------------------------------
+    def _build_helper_rail(self):
+        self._helper_rail_visible = False
+        self._helper_rail = tk.Frame(
+            self,
+            bg=ui_styles.COLORS["surface"],
+            highlightthickness=1,
+            highlightbackground=ui_styles.COLORS["border_dark"],
+        )
+        header = tk.Frame(self._helper_rail, bg=ui_styles.COLORS["surface"])
+        header.pack(fill="x", padx=8, pady=(6, 4))
+        tk.Label(
+            header, text="Helpers", font=ui_styles.FONTS["header"],
+            bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"],
+            anchor="w",
+        ).pack(side="left")
+        tk.Button(
+            header, text="×", command=self._close_helper_rail,
+            font=ui_styles.FONTS["body"],
+            bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text_secondary"],
+            activebackground=ui_styles.COLORS["surface_hover"],
+            activeforeground=ui_styles.COLORS["error"],
+            relief="flat", bd=0, highlightthickness=0,
+            width=2, cursor="hand2",
+        ).pack(side="right")
+
+        for _key, badge, label, opener, color in HELPER_RAIL_ITEMS:
+            row = tk.Frame(
+                self._helper_rail, bg=ui_styles.COLORS["surface"],
+                cursor="hand2")
+            row.pack(fill="x", padx=6, pady=1)
+            badge_lbl = tk.Label(
+                row, text=badge, bg=color, fg="#ffffff",
+                font=(ui_styles.FONTS["body"][0], 8, "bold"),
+                width=3, padx=2, pady=1,
+            )
+            badge_lbl.pack(side="left", padx=(0, 6))
+            text_lbl = tk.Label(
+                row, text=label, anchor="w", font=ui_styles.FONTS["body"],
+                bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"],
+            )
+            text_lbl.pack(side="left", fill="x", expand=True)
+            for widget in (row, badge_lbl, text_lbl):
+                widget.bind(
+                    "<Button-1>", lambda _e, o=opener: self._launch_helper(o))
+                widget.bind(
+                    "<Enter>",
+                    lambda _e, r=row, t=text_lbl: self._hover_helper_row(
+                        r, t, True))
+                widget.bind(
+                    "<Leave>",
+                    lambda _e, r=row, t=text_lbl: self._hover_helper_row(
+                        r, t, False))
+
+        tk.Frame(
+            self._helper_rail, height=1,
+            bg=ui_styles.COLORS["border"],
+        ).pack(fill="x", padx=8, pady=4)
+
+        gear = tk.Frame(
+            self._helper_rail, bg=ui_styles.COLORS["surface"], cursor="hand2")
+        gear.pack(fill="x", padx=6, pady=(0, 4))
+        gear_badge = tk.Label(
+            gear, text="⚙", bg=ui_styles.SUPPORT_COLOR, fg="#ffffff",
+            font=(ui_styles.FONTS["body"][0], 8, "bold"),
+            width=3, padx=2, pady=1,
+        )
+        gear_badge.pack(side="left", padx=(0, 6))
+        gear_text = tk.Label(
+            gear, text="Settings", anchor="w", font=ui_styles.FONTS["body"],
+            bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"],
+        )
+        gear_text.pack(side="left", fill="x", expand=True)
+        for widget in (gear, gear_badge, gear_text):
+            widget.bind("<Button-1>", lambda _e: self._open_dock_settings())
+            widget.bind(
+                "<Enter>",
+                lambda _e, r=gear, t=gear_text: self._hover_helper_row(
+                    r, t, True))
+            widget.bind(
+                "<Leave>",
+                lambda _e, r=gear, t=gear_text: self._hover_helper_row(
+                    r, t, False))
+
+        self._helper_rail.place_forget()
+        self.bind("<Escape>", lambda _e: self._close_helper_rail(), "+")
+        self.bind("<Unmap>", lambda _e: self._close_helper_rail(), "+")
+
+    def _hover_helper_row(self, row, label, active):
+        bg = (ui_styles.COLORS["surface_hover"] if active
+              else ui_styles.COLORS["surface"])
+        try:
+            row.configure(bg=bg)
+            label.configure(bg=bg)
+        except tk.TclError:
+            pass
+
+    def _apply_chrome_layout(self):
+        if not hasattr(self, "_helper_toggle") or not hasattr(self, "menu_bar"):
+            return
+        docked = bool(self.dock.dock_enabled.get())
+        if docked:
+            if self.menu_bar.frame.winfo_manager():
+                self.menu_bar.frame.pack_forget()
+            if not self._helper_toggle.winfo_manager():
+                self._helper_toggle.pack(
+                    side="left", anchor="s", before=self._logo_label,
+                    padx=(0, ui_styles.SPACING["tight"]),
+                    pady=(0, ui_styles.SPACING["tight"]))
+        else:
+            self._close_helper_rail()
+            if self._helper_toggle.winfo_manager():
+                self._helper_toggle.pack_forget()
+            if not self.menu_bar.frame.winfo_manager():
+                self.menu_bar.frame.pack(
+                    side="top", fill="x", before=self._quick_open_row)
+        self.update_idletasks()
+
+    def _toggle_helper_rail(self):
+        if self._helper_rail_visible:
+            self._close_helper_rail()
+        else:
+            self._open_helper_rail()
+
+    def _open_helper_rail(self):
+        if not self.dock.dock_enabled.get():
+            return
+        self._helper_rail.place(
+            x=0, y=0, width=HELPER_RAIL_WIDTH, relheight=1)
+        self._helper_rail.lift()
+        self._helper_rail_visible = True
+        self._helper_toggle.configure(
+            bg=ui_styles.COLORS["primary"], fg="#ffffff",
+            activebackground=ui_styles.COLORS["primary_hover"],
+            activeforeground="#ffffff")
+
+    def _close_helper_rail(self):
+        if not getattr(self, "_helper_rail", None):
+            return
+        self._helper_rail.place_forget()
+        self._helper_rail_visible = False
+        if hasattr(self, "_helper_toggle"):
+            self._helper_toggle.configure(
+                bg=ui_styles.COLORS["surface"],
+                fg=ui_styles.COLORS["text"],
+                activebackground=ui_styles.COLORS["surface_hover"],
+                activeforeground=ui_styles.COLORS["text"])
+
+    def _launch_helper(self, opener_name):
+        self._close_helper_rail()
+        if opener_name == "_open_revisions_register":
+            self._open_revisions_register()
+            return
+        key = opener_name.removeprefix("_open_")
+        self._focus_or_open(key, opener_name)
+
+    def _open_dock_settings(self):
+        self._close_helper_rail()
+        win = getattr(self, "_dock_settings_win", None)
+        if win is not None and win.winfo_exists():
+            win.deiconify()
+            win.lift()
+            win.focus_force()
+            return
+        win = tk.Toplevel(self)
+        win.withdraw()
+        win.title("Settings")
+        win.resizable(False, False)
+        win.configure(bg=ui_styles.COLORS["bg"])
+        body = styled_frame(win)
+        body.pack(fill="both", expand=True, padx=12, pady=(12, 6))
+        toggles = [
+            ("Always on Top", self.always_on_top, self._toggle_always_on_top),
+            ("Debug Mode", self.debug_mode, self._toggle_debug_mode),
+            ("Power User", self.power_user, self._toggle_power_user),
+            ("Debug Console", self.show_console, self._toggle_console),
+            ("Fake SAP", self.fake_sap, self._toggle_fake),
+            ("Dock top", self.dock.dock_enabled, self._toggle_dock),
+            ("Auto-hide", self.dock.autohide, self._toggle_autohide),
+        ]
+        for text, var, command in toggles:
+            tk.Checkbutton(
+                body, text=text, variable=var, command=command,
+                font=ui_styles.FONTS["body"], anchor="w",
+                bg=ui_styles.COLORS["bg"], fg=ui_styles.COLORS["text"],
+                activebackground=ui_styles.COLORS["bg"],
+                activeforeground=ui_styles.COLORS["text"],
+                selectcolor=ui_styles.COLORS["surface"],
+                highlightthickness=0, bd=0,
+            ).pack(fill="x", pady=1)
+        buttons = styled_frame(win)
+        buttons.pack(fill="x", padx=12, pady=(4, 12))
+        ui_styles.styled_button(
+            buttons, "Check for updates…", command=self._open_update_modal
+        ).pack(side="left")
+        ui_styles.styled_button(
+            buttons, "Quit", command=self._on_close
+        ).pack(side="right")
+        ui_styles.styled_button(
+            buttons, "Close", command=win.destroy
+        ).pack(side="right", padx=(0, 6))
+        win.bind("<Escape>", lambda _e: win.destroy(), "+")
+        self._dock_settings_win = win
+        center_on_toolbar(win, self)
+        win.deiconify()
+        win.lift()
+        win.focus_force()
+        correct_for_decorations(win, self)
+        apply_titlebar_color(win, ui_styles.SUPPORT_COLOR)
 
     def _cancel_tray_anim(self):
         self._tray_anim_gen += 1
@@ -771,6 +1018,8 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
                             command=self._toggle_always_on_top),
                 MenuBarItem("Debug Mode", variable=self.debug_mode,
                             command=self._toggle_debug_mode),
+                MenuBarItem("Power User", variable=self.power_user,
+                            command=self._toggle_power_user),
                 MenuBarItem("Debug Console", variable=self.show_console,
                             command=self._toggle_console),
                 MenuBarItem("Fake SAP", variable=self.fake_sap,
@@ -1064,6 +1313,15 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             # Process any pending scripts when debugger closes
             self._process_pending_debug_script()
         self._save_meta_value("debug_mode", self.debug_mode.get())
+
+    def _toggle_power_user(self):
+        """Power-user mode: right-click editing on tool-window buttons."""
+        self._save_meta_value("power_user", self.power_user.get())
+        self.report_status(
+            "Power User on - tool-window buttons can be right-click edited"
+            if self.power_user.get() else "Power User off",
+            "info",
+        )
 
     def _toggle_console(self):
         """Spawn or tear down the debug console (Windows terminal window)

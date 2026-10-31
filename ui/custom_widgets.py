@@ -71,6 +71,18 @@ def _id_exists(component, button_id: str) -> bool:
     return button_id in component.config_data["customcomponents"][component_type]
 
 
+def _toolbar_of(component):
+    """The SapToolbar that owns this widget, if any."""
+    from ui.sap_toolbar import SapToolbar
+
+    node = component
+    while node is not None:
+        if isinstance(node, SapToolbar):
+            return node
+        node = getattr(node, "master", None)
+    return None
+
+
 class CustomComponent:
     """Mixin for right-click editing on any widget."""
 
@@ -96,6 +108,17 @@ class CustomComponent:
     def _on_right_click(self, event):
         """Show edit modal on right-click."""
         from .edit_modal import EditModal
+
+        # Tool-window buttons are a power-user feature; main-toolbar buttons
+        # and all entry/header/column editing stay end-user editable.
+        if self.component_type == "buttons":
+            from ui.sap_toolbar import SapToolbar
+
+            if not isinstance(self.winfo_toplevel(), SapToolbar):
+                toolbar = _toolbar_of(self)
+                power = getattr(toolbar, "power_user", None) if toolbar else None
+                if power is None or not power.get():
+                    return
 
         # Get the original ID for config lookup
         original_id = self._get_original_id()

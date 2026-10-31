@@ -113,6 +113,7 @@ class DockManager:
         self._anim_gen = 0
         self._topmost_id: str | None = None
         self._peek_hover_id: str | None = None
+        self._grab_watch_id: str | None = None
 
         root.bind("<Enter>", self._on_enter, "+")
         root.bind("<Leave>", self._on_leave, "+")
@@ -206,6 +207,7 @@ class DockManager:
         self._destroyed = True
         self._cancel_anim()
         self._stop_topmost_watch()
+        self._stop_grab_watch()
         try:
             if self._hide_after:
                 self.root.after_cancel(self._hide_after)
@@ -281,8 +283,11 @@ class DockManager:
         # A helper that closed may have skipped the last hide; re-arm it so
         # the bar returns to its normal auto-hide behaviour.
         if (self.autohide.get() and not self._is_hidden()
-                and self._hide_after is None and not self._hold_visible()):
+                and self._hide_after is None):
             self._on_leave()
+        if (self.autohide.get() and not self._is_hidden()
+                and self._grab_active()):
+            self._start_grab_watch()
         self._start_topmost_watch()
 
     def _stop_topmost_watch(self):
@@ -292,6 +297,7 @@ class DockManager:
             except Exception:
                 pass
             self._topmost_id = None
+        self._stop_grab_watch()
 
     def _snap_top(self):
         """Center on the top edge OF THE TOOLBAR'S OWN MONITOR (not the
@@ -596,25 +602,45 @@ class DockManager:
         except Exception:
             self._anim_id = None
 
-    def _hold_visible(self) -> bool:
-        """True while a helper modal holds a grab.
+    def _grab_active(self) -> bool:
+        """Whether a modal helper currently holds a grab.
 
-        Tool windows deliberately do not hold the bar: the docked toolbar
-        keeps its normal auto-hide behaviour while one is open. Only a modal
-        helper (which would otherwise strand the pointer on it) pauses the
-        hide, and the pill hover poll restores the bar through the grab.
+        The bar still auto-hides; this only drives a faster pointer watch,
+        because a grab can swallow the root's <Leave> event.
         """
         try:
             return self.root.grab_current() is not None
         except Exception:
             return False
 
+    def _owned_dialog_open(self) -> bool:
+        """True while a visible Toplevel is transient to the toolbar itself.
+
+        Windows hides such dialogs when their owner withdraws, so the dock
+        must stay visible while one is up. Dialogs transient to a tool window
+        (e.g. PRH's order lookup) do not hold the bar.
+        """
+        try:
+            for child in self.root.winfo_children():
+                if not isinstance(child, tk.Toplevel):
+                    continue
+                try:
+                    if not child.winfo_ismapped():
+                        continue
+                    if str(child.transient()) == str(self.root):
+                        return True
+                except tk.TclError:
+                    continue
+        except tk.TclError:
+            pass
+        return False
+
     def _on_leave(self, _event=None):
         if not (self.dock_enabled.get() and self.autohide.get()):
             return
         if self._is_hidden():
             return
-        if self._hold_visible():
+        if self._owned_dialog_open():
             return
         self._cancel_pending_hide()
         try:
@@ -638,13 +664,58 @@ class DockManager:
                 pass
             self._hide_after = None
 
+    def _start_grab_watch(self):
+        if self._grab_watch_id is None and not self._destroyed:
+            try:
+                self._grab_watch_id = self.root.after(
+                    PEEK_HOVER_MS, self._grab_watch_tick)
+            except Exception:
+                self._grab_watch_id = None
+
+    def _stop_grab_watch(self):
+        if self._grab_watch_id:
+            try:
+                self.root.after_cancel(self._grab_watch_id)
+            except Exception:
+                pass
+            self._grab_watch_id = None
+
+    def _grab_watch_tick(self):
+        """A modal grab can swallow <Leave>; poll the pointer so autohide
+        still follows the mouse while a helper is open."""
+        self._grab_watch_id = None
+        if self._destroyed or not (
+                self.dock_enabled.get() and self.autohide.get()):
+            return
+        if self._is_hidden() or not self._grab_active():
+            return
+        try:
+            px, py = self.root.winfo_pointerx(), self.root.winfo_pointery()
+            rx, ry = self.root.winfo_rootx(), self.root.winfo_rooty()
+            rw, rh = self.root.winfo_width(), self.root.winfo_height()
+            inside = (
+                rx - 2 <= px <= rx + rw + 2
+                and ry - 2 <= py <= ry + rh + 2
+            )
+        except Exception:
+            inside = True
+        if inside:
+            self._cancel_pending_hide()
+        elif self._hide_after is None:
+            self._on_leave()
+        try:
+            self._grab_watch_id = self.root.after(
+                PEEK_HOVER_MS, self._grab_watch_tick)
+        except Exception:
+            self._grab_watch_id = None
+
     def _maybe_hide(self):
         self._hide_after = None
         if not (self.dock_enabled.get() and self.autohide.get()):
             return
         if self._is_hidden():
             return
-        if self._hold_visible():
+        if self._owned_dialog_open():
             return
         try:
             px, py = self.root.winfo_pointerx(), self.root.winfo_pointery()
@@ -853,6 +924,7 @@ class DockManager:
             w, h = peek.winfo_width(), peek.winfo_height()
             if x <= px <= x + w and y <= py <= y + h:
                 self._show_main()
+                self._start_grab_watch()
                 return
         except Exception:
             return

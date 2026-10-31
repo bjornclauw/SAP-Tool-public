@@ -40,6 +40,7 @@ _METHOD_NAMES = {
     "doubleclickcurrentcell",
     "extractdata",
     "getcellvalue",
+    "maximize",
     "modifycell",
     "press",
     "pressenter",

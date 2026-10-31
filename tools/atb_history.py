@@ -7,9 +7,11 @@ I upload?" Shape:
         "order": "4191447", "short_text": "URG| ...", "date": "28.09.2026",
         "workplace": "ME-01", "created_on": "28.09.2026",
         "atbs": [{"nr": "23063320", "kind": "Goods",
-                  "short_text": "...", "created_on": "28.09.2026"}],
+                  "short_text": "...", "created_on": "28.09.2026",
+                  "updated_on": ""}],
         "attachments": [{"doc_nr": "...", "description": "...",
-                         "filename": "...", "uploaded_on": "28.09.2026"}],
+                         "filename": "...", "uploaded_on": "28.09.2026",
+                         "updated_on": ""}],
     }]}
 
 Pure data logic, no UI -- the Purchase Request Helper owns the view.
@@ -22,7 +24,9 @@ import os
 import re
 from datetime import datetime
 
-MAX_ORDERS = 100
+# SAP descriptions are short; capping at write time keeps the history file
+# and every view/copy of it consistently trimmed.
+MAX_DETAIL = 50
 
 # Real SAP success message: "ATB-nummer 0023063323 gecreëerd".
 _ATB_NR_RE = re.compile(r"ATB-nummer\s+(\d+)", re.IGNORECASE)
@@ -41,6 +45,11 @@ def parse_atb_number(sbar_text: str) -> str:
 
 def _today() -> str:
     return datetime.now().strftime("%d.%m.%Y")
+
+
+def _cap_detail(value) -> str:
+    """Trim a description to MAX_DETAIL; the store keeps only the short form."""
+    return (value or "")[:MAX_DETAIL]
 
 
 def default_path() -> str:
@@ -96,7 +105,7 @@ class AtbHistoryStore:
         if entry is None:
             entry = {
                 "order": order_nr,
-                "short_text": short_text or "",
+                "short_text": _cap_detail(short_text),
                 "date": date or "",
                 "workplace": workplace or "",
                 "created_on": _today(),
@@ -104,13 +113,15 @@ class AtbHistoryStore:
                 "attachments": [],
             }
             self._data["orders"].insert(0, entry)
-            del self._data["orders"][MAX_ORDERS:]
             self.save()
             return entry
         for key, val in (("short_text", short_text), ("date", date),
                          ("workplace", workplace)):
             if val and not entry.get(key):
-                entry[key] = val
+                entry[key] = _cap_detail(val) if key == "short_text" else val
+        capped = _cap_detail(entry.get("short_text", ""))
+        if capped != entry.get("short_text", ""):
+            entry["short_text"] = capped
         self.save()
         return entry
 
@@ -118,43 +129,83 @@ class AtbHistoryStore:
                 short_text: str = "", vendor: str = "",
                 vendor_name: str = "") -> dict | None:
         """Record a created ATB. Re-recording the same nr updates instead of
-        duplicating. Returns the ATB entry, or None when nr is blank."""
+        duplicating, and stamps ``updated_on`` only when a field changed.
+        Returns the ATB entry, or None when nr is blank."""
         nr = (nr or "").strip()
         if not nr:
             return None
+        short_text = _cap_detail(short_text)
         entry = self.ensure_order(order_nr)
         for atb in entry["atbs"]:
             if atb.get("nr") == nr:
-                atb["kind"] = kind or atb.get("kind", "")
-                if short_text:
-                    atb["short_text"] = short_text
-                if vendor:
-                    atb["vendor"] = vendor
-                if vendor_name:
-                    atb["vendor_name"] = vendor_name
+                changed = False
+                for key, value in (("kind", kind), ("short_text", short_text),
+                                   ("vendor", vendor),
+                                   ("vendor_name", vendor_name)):
+                    if value and value != atb.get(key):
+                        atb[key] = value
+                        changed = True
+                if changed:
+                    atb["updated_on"] = _today()
                 self.save()
                 return atb
         atb = {"nr": nr, "kind": kind or "",
                "short_text": short_text or "", "vendor": vendor or "",
-               "vendor_name": vendor_name or "", "created_on": _today()}
+               "vendor_name": vendor_name or "", "created_on": _today(),
+               "updated_on": ""}
         entry["atbs"].insert(0, atb)
         self.save()
         return atb
 
+    def seed_atbs(self, order_nr: str, atbs: list[dict]) -> int:
+        """Fill in ATB records history does not have yet.
+
+        Used when an order entry was lost (old store file, or a rotated-out
+        order) but the overview grid still knows its ATBs. Existing numbers
+        are never overwritten. Returns how many were added.
+        """
+        entry = self.find_order(order_nr)
+        if entry is None:
+            return 0
+        existing = {a.get("nr") for a in entry.setdefault("atbs", [])}
+        added = 0
+        for atb in atbs:
+            nr = (atb.get("nr") or "").strip()
+            if not nr or nr in existing:
+                continue
+            entry["atbs"].append({
+                "nr": nr,
+                "kind": atb.get("kind", "") or "",
+                "short_text": _cap_detail(atb.get("short_text", "")),
+                "vendor": atb.get("vendor", "") or "",
+                "vendor_name": atb.get("vendor_name", "") or "",
+                "created_on": atb.get("created_on", "") or "",
+                "updated_on": "",
+            })
+            existing.add(nr)
+            added += 1
+        if added:
+            self.save()
+        return added
+
     def add_attachment(self, order_nr: str, doc_nr: str,
                        description: str, filename: str) -> dict:
         """Record an uploaded attachment. Same doc_nr+filename twice updates
-        instead of duplicating (re-uploads happen)."""
+        instead of duplicating (re-uploads happen) and stamps ``updated_on``;
+        ``uploaded_on`` stays the latest upload date."""
+        description = _cap_detail(description)
         entry = self.ensure_order(order_nr)
         for att in entry["attachments"]:
             if att.get("doc_nr") == doc_nr and att.get("filename") == filename:
                 if description:
                     att["description"] = description
                 att["uploaded_on"] = _today()
+                att["updated_on"] = _today()
                 self.save()
                 return att
         att = {"doc_nr": doc_nr or "", "description": description or "",
-               "filename": filename or "", "uploaded_on": _today()}
+               "filename": filename or "", "uploaded_on": _today(),
+               "updated_on": ""}
         entry["attachments"].insert(0, att)
         self.save()
         return att

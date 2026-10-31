@@ -50,6 +50,11 @@ from .sap_reply import is_success, parse_created_number
 # whatever revision SAP was given, so the local row never diverges from it.
 _ASSIGNABLE_STATUSES = frozenset({"0", "3", "8", "9"})
 
+# SAP Import's own accent, distinct from Print Orders' teal and the app-wide
+# primary blue.
+_ACCENT = ui_styles.TOOL_COLORS["sap_import"]
+_ACCENT_HOVER = "#3f51b5"
+
 _DEFAULT_IMPORT_COLUMNS = ["Auto", "Status", "_id", "PG", "FLOC", "WP", "STEXT",
                            "WO_TYPE", "WO_KEY", "PRIOR", "WO", "USTATUS", "PICS",
                            "SAP_NUMBER", "Bericht"]
@@ -271,8 +276,8 @@ class SapImportWindow(BaseToolWindow):
             ("si_send_btn", "\u25b6 Send to SAP", self._on_send_clicked),
         ):
             btn = CustomButton(primary, "buttons", btn_id, text=text, command=cmd,
-                               bg=ui_styles.COLORS["primary"], fg="#ffffff",
-                               activebackground=ui_styles.COLORS.get("primary_hover", "#2980b9"))
+                               bg=_ACCENT, fg="#ffffff",
+                               activebackground=_ACCENT_HOVER)
             btn.pack(side="left", padx=(0, ui_styles.SPACING["tight"]))
             if btn_id == "si_fetch_btn":
                 self._fetch_btn = btn
@@ -300,7 +305,7 @@ class SapImportWindow(BaseToolWindow):
         right.pack(side="right")
         # Live count of the grid's row selection (bulk-edit affordance).
         self._sel_label = tk.Label(right, text="", bg=ui_styles.COLORS["bg"],
-                                   fg=ui_styles.COLORS["primary"],
+                                   fg=_ACCENT,
                                    font=ui_styles.FONTS["body"])
         self._sel_label.pack(side="left", padx=(0, 12))
         tk.Label(right, text="Auto-assign", bg=ui_styles.COLORS["bg"],
