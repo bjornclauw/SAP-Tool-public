@@ -21,9 +21,9 @@ from collections.abc import Callable
 import tksheet
 from ui import ui_styles
 
-from .failures import has_failure
 from .models import COL_WIDTHS, STATUS_LABELS, auto_upload_eligible
 from .palette import cell_colour, cell_text_colour
+from .row_state import has_failure
 
 _MIN_WIDTH, _MAX_WIDTH, _WIDTH_SAMPLE = 40, 380, 200
 

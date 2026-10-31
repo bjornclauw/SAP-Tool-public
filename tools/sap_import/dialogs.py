@@ -19,7 +19,7 @@ from .options import dropdown_lists, load_wo_tree
 
 def show_failure_dialog(parent, row: dict):
     """Read-only window naming the failing SAP script line of an upload."""
-    from .failures import failure_text
+    from .row_state import failure_text
 
     top = tk.Toplevel(parent)
     top.withdraw()
@@ -208,7 +208,7 @@ class EditRowDialog(tk.Toplevel):
     # ---- failure detail ---------------------------------------------------
     def _build_failure_note(self):
         """Name the failing SAP line when the row's last upload errored."""
-        from .failures import failure_text, has_failure
+        from .row_state import failure_text, has_failure
         if not has_failure(self._row):
             return
         tk.Label(self, text=failure_text(self._row), justify="left", anchor="w",

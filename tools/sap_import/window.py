@@ -21,7 +21,6 @@ from ui.ui_styles import styled_frame, styled_label
 from . import grid_config
 from .api_client import ImportApiClient
 from .dialogs import EditRowDialog, ask_free_text, show_failure_dialog
-from .failures import clear_failure, has_failure, record_failure
 from .grid import ImportGrid
 from .models import (
     CANCEL_REQUESTED,
@@ -43,6 +42,22 @@ from .options import (
     load_wo_tree,
 )
 from .options_popup import OptionsPopup
+from .row_state import (
+    assign_status,
+    has_failure,
+    mark_already_flagged,
+    mark_cancel_processed,
+    mark_cancel_requested,
+    mark_flag_error,
+    mark_force_upload,
+    mark_pending,
+    mark_preflight_missing,
+    mark_processing,
+    mark_sap_done,
+    mark_undone,
+    migrate_legacy_status,
+    record_failure,
+)
 from .sap_reply import is_success, parse_created_number
 
 # The statuses auto-assign may touch: work SAP has not been told about yet.
@@ -140,8 +155,7 @@ class SapImportWindow(BaseToolWindow):
                 self._rows_data = [d for d in data if isinstance(d, dict)]
                 # Retired status 66 (FORCEREN) is the cancel request now.
                 for row in self._rows_data:
-                    if str(row.get("Status")) == "66":
-                        row["Status"] = CANCEL_REQUESTED
+                    migrate_legacy_status(row)
         except Exception:
             pass
 
@@ -748,9 +762,7 @@ class SapImportWindow(BaseToolWindow):
         changed = 0
         for r in self._rows_data:
             if r.get("Status") == "3":
-                r["Status"] = "0"
-                r["Bericht"] = ""
-                clear_failure(r)
+                mark_pending(r)
                 changed += 1
         if changed:
             self._rebuild_grid()
@@ -811,7 +823,7 @@ class SapImportWindow(BaseToolWindow):
         # The status the row was queued as decides the path: a cancel request
         # never reaches SAP (see docs/decisions/0005-upload-flag-semantics.md).
         status_val = str(row.get("Status", "0"))
-        row["Status"] = "1"
+        mark_processing(row)
         self._update_row(row)
         self.report_status(f"Processing ({self._done_count + 1}/{self._total})...", "info")
 
@@ -826,20 +838,18 @@ class SapImportWindow(BaseToolWindow):
 
         # Preflight: fail fast if required fields missing (no SAP roundtrip)
         if not (row.get("FLOC", "").strip() and row.get("STEXT", "").strip()):
-            row["Status"] = "3"
-            row["Bericht"] = "Missing FLOC/STEXT"
+            mark_preflight_missing(row)
             self._on_row_done(row)
             return
 
         if row_id and table_id and not self._fake_sap() and status_val != "9":
             flag = self._api.get_flag(row_id)
             if flag == -1:
-                row["Status"] = "8"
-                row["Bericht"] = "API error (getFlag)"
+                mark_flag_error(row)
                 self._on_row_done(row)
                 return
             if flag == 1:
-                row["Status"] = "7"
+                mark_already_flagged(row)
                 self._on_row_done(row)
                 return
 
@@ -918,13 +928,8 @@ class SapImportWindow(BaseToolWindow):
             record_failure(row, script, text or "SAP save failed", None, "")
             self._on_row_done(row)
             return
-        clear_failure(row)
-        row["SAP_NUMBER"] = parse_created_number(text)
-        row["SAP_KIND"] = kind
-        row["Bericht"] = text or (
-            "WO created" if kind == "workorder" else "Notification created")
         flagged = self._flag_on_server(row)
-        row["Status"] = "6" if flagged else "2"
+        mark_sap_done(row, text, kind, parse_created_number(text), flagged)
         self._on_row_done(row)
 
     def _on_row_done(self, row: dict):
@@ -1003,11 +1008,8 @@ class SapImportWindow(BaseToolWindow):
         If the flag API fails the row becomes 2 ("OK, ERR reply") instead, so
         the cancellation is visible and the row can reappear for a retry.
         """
-        row["Bericht"] = "Geannuleerd"
-        if not self._flag_on_server(row):
-            row["Status"] = "2"  # Geannuleerd || Flag API failed
-        else:
-            row["Status"] = CANCELLED
+        flagged = self._flag_on_server(row)
+        mark_cancel_processed(row, flagged)
 
     # ---- edit dialog ----------------------------------------------------------
 
@@ -1226,16 +1228,14 @@ class SapImportWindow(BaseToolWindow):
             self.report_status("Stop processing first", "warning")
             return
         row_id = row.get("_id", "")
-        row["Status"] = CANCEL_REQUESTED
-        row["Bericht"] = ""
-        clear_failure(row)
+        mark_cancel_requested(row)
         self._update_row(row)
         self._save_queue()
         self._update_progress()
         self.report_status(f"Item {row_id[:12]} — cancellation requested", "warning")
 
     def _force_upload(self, row: dict):
-        row["Status"] = "9"
+        mark_force_upload(row)
         self._update_row(row)
         self._save_queue()
         self._update_progress()
@@ -1253,11 +1253,7 @@ class SapImportWindow(BaseToolWindow):
 
     @staticmethod
     def _apply_status_to_row(row: dict, code: str):
-        row["Status"] = code
-        # Going back to pending / cancel-request / force clears the message.
-        if code in ("0", CANCEL_REQUESTED, "9"):
-            row["Bericht"] = ""
-            clear_failure(row)
+        assign_status(row, code)
 
     # ---- bulk edit --------------------------------------------------------
 
@@ -1310,17 +1306,13 @@ class SapImportWindow(BaseToolWindow):
         # marked uploaded is re-sent through Force Upload (see
         # docs/decisions/0005-upload-flag-semantics.md) instead of being cleared
         # on the server.
-        clear_failure(row)
+        mark_undone(row)
         if row.get("_id"):
-            row["Status"] = "9"
-            row["Bericht"] = ""
             self._update_row(row)
             self._save_queue()
             self._update_progress()
             self.report_status("Undo is local — item set to Force Upload (9)", "warning")
             return
-        row["Status"] = "0"
-        row["Bericht"] = ""
         self._update_row(row)
         self._save_queue()
         self._update_progress()
@@ -1357,8 +1349,6 @@ class SapImportWindow(BaseToolWindow):
         if row.get("PREV_ORDER_ID"):
             ok = self._api.flag_added(row["PREV_ORDER_ID"], "PO") and ok
         if not ok:
-            existing = row.get("Bericht", "")
-            row["Bericht"] = (existing + " || " if existing else "") + "Flag API failed"
             self.report_status(
                 f"Flag API failed for {str(row.get('_id', ''))[:12]} — row needs attention",
                 "warning")

@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.10.31.5 — 2026-10-31
+
+- SAP Import: cancelled, failed and pending rows now follow the same rules everywhere, so status chips, colours and counters can no longer disagree after a run.
+
 ## 2026.10.31.4 — 2026-10-31
 
 - Docked toolbar now has a Helpers rail for Purchase Request, Print Orders, SAP Import and Revisions; its gear opens Settings. The docked menu bar is gone, so dropdowns no longer fight the docked window.

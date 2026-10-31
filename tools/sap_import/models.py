@@ -45,8 +45,21 @@ STATUS_COLORS = {code: status.colour for code, status in STATUSES.items()}
 ITERATED_STATUSES = frozenset(c for c, s in STATUSES.items() if s.iterated)
 CREATE_STATUSES = frozenset(c for c, s in STATUSES.items() if s.kind == "create")
 CANCEL_STATUSES = frozenset(c for c, s in STATUSES.items() if s.kind == "cancel")
+PENDING = "0"
+PROCESSING = "1"
+OK_ERR_REPLY = "2"
+FAILED = "3"
 CANCEL_REQUESTED = "4"
+OK_ERR_PIC = "5"
+COMPLETED = "6"
+ALREADY_FLAGGED = "7"
+NO_COMM = "8"
+FORCE_UPLOAD = "9"
 CANCELLED = "10"
+
+# Retired status 66 (FORCEREN) maps to the cancel request when loading an
+# old queue.
+LEGACY_FORCE = "66"
 
 # Accounting buckets shared by the Import window and the toolbar counter.
 # Status 7 means SAP already has the row, so it is finished, not pending.
