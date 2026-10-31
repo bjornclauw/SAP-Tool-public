@@ -1,5 +1,10 @@
 # SAP Work Order Tool
 
+## 2026.10.31.2 — 2026-10-31
+- Updater: hide Git console windows
+- Release: require publishing runtime changes
+- Docs: masterkey layout and install steps
+
 ## 2026.10.31.1 — 2026-10-31
 - Publish: handle an empty public repo
 - Publish: generate the public runtime mirror and changelog

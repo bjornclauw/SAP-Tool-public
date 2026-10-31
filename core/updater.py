@@ -45,6 +45,11 @@ class UpdateCheck:
     error: str | None = None
 
 
+def no_window_flags() -> int:
+    """Keep console helpers (git, cmd) invisible when running under pythonw."""
+    return int(getattr(subprocess, "CREATE_NO_WINDOW", 0))
+
+
 def git_executable(root: Path | str = APP_ROOT) -> str:
     """The bundled portable Git when present, otherwise Git on PATH."""
     bundled = Path(root) / "git" / "cmd" / "git.exe"
@@ -59,6 +64,7 @@ def run_git(root: Path | str, args: list[str], timeout: int = 120) -> str:
             capture_output=True,
             text=True,
             timeout=timeout,
+            creationflags=no_window_flags(),
         )
     except FileNotFoundError as exc:
         raise UpdateError(
@@ -161,9 +167,7 @@ def relaunch(root: Path | str = APP_ROOT) -> None:
     pythonw = executable.with_name("pythonw.exe")
     if pythonw.is_file():
         executable = pythonw
-    flags = 0
-    for name in ("CREATE_NO_WINDOW", "DETACHED_PROCESS"):
-        flags |= int(getattr(subprocess, name, 0))
+    flags = no_window_flags() | int(getattr(subprocess, "DETACHED_PROCESS", 0))
     subprocess.Popen(
         [str(executable), "main.py"],
         cwd=str(root),
