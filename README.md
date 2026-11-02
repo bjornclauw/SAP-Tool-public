@@ -1,5 +1,14 @@
 # SAP Work Order Tool
 
+## 2026.11.02.3 — 2026-11-02
+
+- The Print Orders window is now called Process Orders, which better matches what it does.
+- Completed results are kept as one PDF per single order and one merged PDF per batch; the separate work-order and photo parts are deleted after combining.
+- Processing a single order again asks before overwriting its PDF and history entry.
+- Merge and auto-merge always use every DONE order visible in the table, so a manually processed order is included in the next batch merge.
+- A typed or IW32 order that is not in the loaded list joins the table as a DONE row when a list is loaded.
+- History shows one clear description per result instead of repeating the order, status and file details.
+
 ## 2026.11.02.2 — 2026-11-02
 
 - Print Orders now loads the open IW38 list automatically, keeps a manual Load button, and can print one order, selected rows, or all visible rows.

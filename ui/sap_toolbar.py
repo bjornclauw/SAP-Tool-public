@@ -53,7 +53,7 @@ SHORTCUT_BUTTONS = [
 HELPER_RAIL_ITEMS = [
     ("purchase_request", "PR", "Purchase Request",
      "_open_purchase_request", ui_styles.TOOL_COLORS["purchase_request"]),
-    ("print_orders", "PO", "Print Orders",
+    ("print_orders", "PO", "Process Orders",
      "_open_print_orders", ui_styles.TOOL_COLORS["print_orders"]),
     ("sap_import", "SI", "SAP Import",
      "_open_sap_import", ui_styles.TOOL_COLORS["sap_import"]),
@@ -1006,7 +1006,7 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             "Tools",
             [
                 MenuBarItem("Purchase Request Helper", self._open_purchase_request),
-                MenuBarItem("Print Orders", self._open_print_orders),
+                MenuBarItem("Process Orders", self._open_print_orders),
                 MenuBarItem("SAP Import", self._open_sap_import),
                 MenuBarItem("Revisions Register", self._open_revisions_register),
             ],

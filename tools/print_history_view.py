@@ -1,9 +1,9 @@
-"""PrintHistoryPane -- searchable run history for the Print Orders window.
+"""PrintHistoryPane -- searchable run history for the Process Orders window.
 
-Each run is a folder with the work-order PDFs, attachment PDFs and merged
-PDF it produced. Runs are grouped under their start day; a filter box matches
-every stored field. Double-click opens the existing PDF, right-click adds
-Open Folder / Copy Path / Re-print via SAP.
+Only final artifacts are shown: one combined PDF per single-order print, and
+one merged PDF per batch. Runs are grouped under their start day; a filter box
+matches every stored field. Double-click opens the existing PDF, right-click
+adds Open Folder / Copy Path / Process again via SAP.
 
 Pure view over PrintHistoryStore -- no engine access here.
 """
@@ -21,22 +21,20 @@ from ui.ui_styles import styled_frame, styled_label
 
 def _run_blob(run: dict) -> str:
     parts = [
-        str(run.get("id", "")),
-        str(run.get("started", "")),
-        str(run.get("started_day", "")),
-        str(run.get("merged", "")),
+        str(run.get(k, "")) for k in
+        ("id", "started", "started_day", "kind", "file", "merged",
+         "order", "short_text", "status", "error")
     ]
     for entry in run.get("orders", []) or []:
         parts.extend(str(entry.get(k, "")) for k in
-                     ("order", "short_text", "status", "workorder",
-                      "attachments", "error"))
+                     ("order", "short_text", "status", "error"))
     return " ".join(parts).lower()
 
 
 def _order_blob(entry: dict) -> str:
     return " ".join(
         str(entry.get(k, "")) for k in
-        ("order", "short_text", "status", "workorder", "attachments", "error")
+        ("order", "short_text", "status", "error")
     ).lower()
 
 
@@ -48,7 +46,6 @@ class PrintHistoryPane:
         self._store = store
         self._on_reprint = on_reprint
         self._payload: dict[str, tuple[str, dict, dict | None]] = {}
-        self._empty_iid: str | None = None
 
         container = styled_frame(parent)
         self.frame = container
@@ -61,7 +58,7 @@ class PrintHistoryPane:
             bg=ui_styles.COLORS["bg"])
         self._header.pack(side="left")
         styled_label(
-            top, "latest runs", font=ui_styles.FONTS["small"],
+            top, "latest results", font=ui_styles.FONTS["small"],
             fg=ui_styles.COLORS["text_secondary"],
             bg=ui_styles.COLORS["bg"]).pack(side="left", padx=(6, 0))
 
@@ -85,14 +82,14 @@ class PrintHistoryPane:
             fieldbackground=ui_styles.COLORS["surface"])
 
         self.tree = ttk.Treeview(
-            container, columns=("details", "info"), show="tree headings",
+            container, columns=("description", "when"), show="tree headings",
             style="PrintHist.Treeview", height=7)
-        self.tree.heading("#0", text="Run / Order")
-        self.tree.heading("details", text="Details")
-        self.tree.heading("info", text="When")
-        self.tree.column("#0", width=170, minwidth=90, stretch=False)
-        self.tree.column("details", width=340, minwidth=120, stretch=True)
-        self.tree.column("info", width=150, minwidth=90, stretch=False)
+        self.tree.heading("#0", text="Result")
+        self.tree.heading("description", text="Description")
+        self.tree.heading("when", text="When")
+        self.tree.column("#0", width=230, minwidth=120, stretch=False)
+        self.tree.column("description", width=380, minwidth=140, stretch=True)
+        self.tree.column("when", width=140, minwidth=90, stretch=False)
 
         self._v_scroll = ttk.Scrollbar(
             container, orient="vertical", command=self.tree.yview)
@@ -111,7 +108,7 @@ class PrintHistoryPane:
         self.tree.tag_configure(
             "day", font=(body[0], body[1], "bold"),
             foreground=ui_styles.COLORS["primary"])
-        self.tree.tag_configure("run", font=(body[0], body[1], "bold"))
+        self.tree.tag_configure("result", font=(body[0], body[1], "bold"))
         self.tree.tag_configure("failed", foreground=ui_styles.COLORS["error"])
 
         self.refresh()
@@ -123,10 +120,71 @@ class PrintHistoryPane:
             self.refresh()
         self._search_entry.focus_set()
 
+    @staticmethod
+    def _stored_file(run: dict) -> str:
+        name = run.get("file") or run.get("merged") or ""
+        if not name:
+            for entry in run.get("orders", []) or []:
+                for key in ("workorder", "attachments"):
+                    if entry.get(key):
+                        name = entry[key]
+                        break
+                if name:
+                    break
+        return name
+
+    def _insert_run(self, day_iid: str, run: dict, orders: list[dict],
+                    query: str) -> None:
+        kind = run.get("kind") or ("single" if run.get("order") else "batch")
+        stored = self._stored_file(run)
+        when = run.get("started") or ""
+        run_matches = not query or query in _run_blob(run)
+
+        if kind == "single":
+            first = orders[0] if orders else {}
+            order = str(run.get("order") or first.get("order", ""))
+            short = str(run.get("short_text") or first.get("short_text", ""))
+            status = str(run.get("status") or first.get("status", ""))
+            if query and not run_matches:
+                return
+            label = f"{order} · {short}" if short else order
+            details = " · ".join(p for p in (status, stored) if p)
+            tags = ("result",) if status != "Failed" else ("result", "failed")
+            iid = self.tree.insert(
+                day_iid, "end", text=label,
+                values=(details, when), tags=tags)
+            self._payload[iid] = ("single", run, None)
+            return
+
+        done = run.get("done", 0)
+        failed = run.get("failed", 0)
+        visible_orders = [
+            e for e in orders if run_matches or query in _order_blob(e)
+        ]
+        if query and not run_matches and not visible_orders:
+            return
+        summary = f"{done} done"
+        if failed:
+            summary += f", {failed} failed"
+        iid = self.tree.insert(
+            day_iid, "end",
+            text=f"Batch · {len(orders) or done} order(s)",
+            values=(f"{summary} · {stored}" if stored else summary, when),
+            tags=("result",), open=bool(query))
+        self._payload[iid] = ("batch", run, None)
+        for entry in visible_orders:
+            status = str(entry.get("status", ""))
+            short = str(entry.get("short_text", ""))
+            details = " · ".join(p for p in (short, status) if p)
+            tags = ("order",) if status != "Failed" else ("order", "failed")
+            child = self.tree.insert(
+                iid, "end", text=str(entry.get("order", "")),
+                values=(details, when), tags=tags)
+            self._payload[child] = ("order", run, entry)
+
     def refresh(self) -> None:
         self.tree.delete(*self.tree.get_children())
         self._payload = {}
-        self._empty_iid = None
 
         query = (self._search_var.get() or "").strip().lower()
         runs = self._store.runs
@@ -135,11 +193,9 @@ class PrintHistoryPane:
         last_day = None
         for run in runs:
             run_matches = not query or query in _run_blob(run)
-            orders = [
-                e for e in (run.get("orders", []) or [])
-                if run_matches or query in _order_blob(e)
-            ]
-            if query and not run_matches and not orders:
+            orders = run.get("orders", []) or []
+            if query and not run_matches and not any(
+                    query in _order_blob(e) for e in orders):
                 continue
 
             day = run.get("started_day") or run.get("started", "")[:10] or "—"
@@ -148,39 +204,7 @@ class PrintHistoryPane:
                     "", "end", text=day, values=("", ""), tags=("day",))
                 last_day = day
             shown_runs += 1
-
-            done = run.get("done", 0)
-            failed = run.get("failed", 0)
-            summary = f"{done} done"
-            if failed:
-                summary += f", {failed} failed"
-            time_part = (run.get("started", "") or "").split(" ")[-1]
-            run_iid = self.tree.insert(
-                day_iid or "", "end",
-                text=f"{time_part} · {run.get('kind', 'run')}",
-                values=(f"{len(run.get('orders', []) or [])} order(s), {summary}",
-                        run.get("started") or ""),
-                tags=("run",), open=True,
-            )
-            self._payload[run_iid] = ("run", run, None)
-
-            for entry in orders:
-                status = entry.get("status", "")
-                details = " · ".join(
-                    p for p in (
-                        entry.get("short_text", ""),
-                        status,
-                        entry.get("workorder", ""),
-                        entry.get("attachments", ""),
-                        entry.get("error", ""),
-                    ) if p)
-                tags = ("order",) if status != "Failed" else ("order", "failed")
-                child = self.tree.insert(
-                    run_iid, "end",
-                    text=str(entry.get("order", "")),
-                    values=(details, run.get("started") or ""),
-                    tags=tags)
-                self._payload[child] = ("order", run, entry)
+            self._insert_run(day_iid or "", run, orders, query)
 
         total = len(runs)
         if query:
@@ -190,21 +214,25 @@ class PrintHistoryPane:
         self._clear_search_btn.config(
             state="normal" if query else "disabled")
         if not runs:
-            self._empty_iid = self.tree.insert(
-                "", "end", text="No print history yet",
-                values=("Completed runs appear here", ""),
+            self.tree.insert(
+                "", "end", text="No history yet",
+                values=("Completed results appear here", ""),
                 tags=("day",))
 
     # ---- actions -----------------------------------------------------
-    def _open_pdf(self, run: dict, entry: dict | None) -> None:
-        if entry is not None:
-            for kind in ("workorder", "attachments"):
-                name = entry.get(kind) or ""
-                path = os.path.join(run.get("folder", ""), name)
-                if name and os.path.exists(path):
-                    self._startfile(path)
-                    return
-        self._open_folder(run)
+    def _pdf_path(self, run: dict) -> str | None:
+        name = self._stored_file(run)
+        if not name:
+            return None
+        path = os.path.join(run.get("folder", ""), name)
+        return path if os.path.exists(path) else None
+
+    def _open_pdf(self, run: dict) -> None:
+        path = self._pdf_path(run)
+        if path:
+            self._startfile(path)
+        else:
+            self._open_folder(run)
 
     def _open_folder(self, run: dict) -> None:
         folder = run.get("folder", "")
@@ -221,17 +249,13 @@ class PrintHistoryPane:
         self.tree.clipboard_clear()
         self.tree.clipboard_append(text)
 
-    def _selected_payload(self):
-        sel = self.tree.selection()
-        return self._payload.get(sel[0]) if sel else None
-
     def _on_double_click(self, event):
         iid = self.tree.identify_row(event.y)
         payload = self._payload.get(iid)
         if payload is None:
             return
-        kind, run, entry = payload
-        self._open_pdf(run, entry)
+        _kind, run, _entry = payload
+        self._open_pdf(run)
 
     def _on_right_click(self, event):
         iid = self.tree.identify_row(event.y)
@@ -241,19 +265,25 @@ class PrintHistoryPane:
         self.tree.selection_set(iid)
         kind, run, entry = payload
         menu = tk.Menu(self.tree, tearoff=0)
-        menu.add_command(label="Open PDF",
-                         command=lambda: self._open_pdf(run, entry))
+        menu.add_command(label="Open PDF", command=lambda: self._open_pdf(run))
         menu.add_command(label="Open Folder",
                          command=lambda: self._open_folder(run))
-        if entry is not None:
-            path = os.path.join(run.get("folder", ""),
-                                entry.get("workorder") or "")
+        path = self._pdf_path(run)
+        if path:
             menu.add_command(label="Copy Path",
                              command=lambda p=path: self._copy(p))
-            menu.add_separator()
+        order = ""
+        text = ""
+        if kind == "single":
+            first = (run.get("orders", []) or [{}])[0]
+            order = str(run.get("order") or first.get("order", ""))
+            text = str(run.get("short_text") or first.get("short_text", ""))
+        elif kind == "order" and entry is not None:
             order = str(entry.get("order", ""))
-            text = entry.get("short_text", "")
+            text = str(entry.get("short_text", ""))
+        if order:
+            menu.add_separator()
             menu.add_command(
-                label="Re-print via SAP",
+                label="Process again via SAP",
                 command=lambda o=order, t=text: self._on_reprint(o, t))
         menu.post(event.x_root, event.y_root)

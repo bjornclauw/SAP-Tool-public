@@ -65,7 +65,7 @@ from .sap_reply import is_success, parse_created_number
 # whatever revision SAP was given, so the local row never diverges from it.
 _ASSIGNABLE_STATUSES = frozenset({"0", "3", "8", "9"})
 
-# SAP Import's own accent, distinct from Print Orders' teal and the app-wide
+# SAP Import's own accent, distinct from Process Orders' teal and the app-wide
 # primary blue.
 _ACCENT = ui_styles.TOOL_COLORS["sap_import"]
 _ACCENT_HOVER = "#3f51b5"

@@ -1,18 +1,18 @@
-"""PrintOrdersWindow — mass-print work orders from IW38.
+"""PrintOrdersWindow — process work orders from IW38 or one open IW32 order.
 
 Workflow:
   1. Open IW38, or open one order in IW32.
-  2. "Load IW38 Orders" imports the open IW38 grid; "Print This Order"
+  2. "Load IW38 Orders" imports the open IW38 grid; "Process This Order"
      handles the order open in IW32 (or one typed into the Order field).
   3. Orders without "vrijgegeven" status are flagged "No Release".
-  4. Print All / Print Selected / Retry Failed loop over released orders:
+  4. Process All / Process Selected / Retry Failed loop over released orders:
        a. Open IW32 with order
        b. Print work order as PDF via SAP GUI script
        c. Export attachment list from IHKD tab
        d. Download image files for that order
        e. Create filler PDF from downloaded images
-  5. Completed PDFs are kept in data/print_output/<run>/ and recorded in
-     data/print_history.json; the collapsible History pane shows past runs.
+  5. Each order becomes one combined PDF; single prints are kept per order and
+     a batch produces one merged PDF. History lives in data/print_history.json.
 
 SAP scripts are short operations chained via engine polling.
 Processing stays in the main thread using after() scheduling.
@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import tkinter as tk
 from collections.abc import Callable
 from datetime import datetime
@@ -191,7 +192,7 @@ class PrintOrdersWindow(BaseToolWindow):
 
     def __init__(self, parent, engine):
         super().__init__(parent, engine, titlebar_color=ui_styles.TOOL_COLORS["print_orders"])
-        self.title("Print Orders")
+        self.title("Process Orders")
         self.geometry("1060x760")
         self.minsize(720, 480)
 
@@ -207,17 +208,18 @@ class PrintOrdersWindow(BaseToolWindow):
         self._total = 0
         self._all_items: list[str] = []
         self._row_errors: dict[str, str] = {}
-        self._processed_orders: list[str] = []
-        self._run_files: dict[str, dict] = {}
         self._run_orders: list[str] = []
-        self._run_dir = ""
-        self._run_id = ""
         self._run_started = ""
         self._run_started_day = ""
         self._run_kind = "batch"
-        self._run_recorded = False
         self._active_stem = ""
         self._active_text = ""
+        self._order_pdfs: dict[str, str] = {}
+        self._order_results: dict[str, dict] = {}
+        self._batch_dir = ""
+        self._batch_file = ""
+        self._batch_run_id = ""
+        self._overwrite_single: dict | None = None
         self._merged_file: str | None = None
         self._merged_link: tk.Label | None = None
         self._history_pane: PrintHistoryPane | None = None
@@ -245,6 +247,8 @@ class PrintOrdersWindow(BaseToolWindow):
             self._detect_after_id = None
         if getattr(self, "_user_status_popup", None) is not None:
             self._close_user_status_picker()
+        if getattr(self, "_work_dir", ""):
+            self._remove_work_dir()
         super().destroy()
 
     # ── paths / settings ────────────────────────────────────────────────────
@@ -256,9 +260,13 @@ class PrintOrdersWindow(BaseToolWindow):
 
         self._output_root = os.path.join(base, "data", "print_output")
         os.makedirs(self._output_root, exist_ok=True)
+        self._work_root = os.path.join(self._output_root, ".work")
+        self._session_stamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        self._work_dir = os.path.join(self._work_root, self._session_stamp)
+        os.makedirs(self._work_dir, exist_ok=True)
 
-        escaped = self._temp_path.replace("\\", "\\\\")
-        self.engine.set_variable("po_import_path", escaped)
+        escaped = self._work_dir.replace("\\", "\\\\")
+        self.engine.set_variable("po_import_path", self._temp_path.replace("\\", "\\\\"))
         self.engine.set_variable("po_import_file", self.EXPORT_FILENAME)
         self.engine.set_variable("po_export_path", escaped)
 
@@ -350,19 +358,19 @@ class PrintOrdersWindow(BaseToolWindow):
 
         self._single_btn = CustomButton(
             bar, "buttons", "po_print_open_order_btn",
-            text="Print This Order", command=self._print_open_order,
+            text="Process This Order", command=self._print_open_order,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
         self._single_btn.pack(side="left", padx=(ui_styles.SPACING["tight"], 0))
 
         self._print_sel_btn = CustomButton(
             bar, "buttons", "po_print_selected_btn",
-            text="Print Selected", command=self._on_print_selected_clicked,
+            text="Process Selected", command=self._on_print_selected_clicked,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
         self._print_sel_btn.pack(side="left", padx=(ui_styles.SPACING["tight"], 0))
 
         self._print_all_btn = CustomButton(
             bar, "buttons", "po_start_btn",
-            text="Print All", command=self._on_print_all_clicked,
+            text="Process All", command=self._on_print_all_clicked,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
         self._print_all_btn.pack(side="left", padx=(ui_styles.SPACING["tight"], 0))
 
@@ -478,7 +486,7 @@ class PrintOrdersWindow(BaseToolWindow):
 
         self._merge_btn = CustomButton(
             bar, "buttons", "po_generate_pdf_btn", text="Merge PDFs",
-            command=self._generate_merged_pdf,
+            command=self._merge_done_orders,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
         self._merge_btn.pack(side="right", padx=(0, ui_styles.SPACING["tight"]))
 
@@ -628,12 +636,7 @@ class PrintOrdersWindow(BaseToolWindow):
 
         self._all_items = list(self.tree.get_children())
         self._row_errors.clear()
-        self._processed_orders = []
-        self._run_files = {}
-        self._run_orders = []
-        self._merged_file = None
-        if self._merged_link is not None:
-            self._merged_link.config(text="")
+        self._reset_session_outputs()
 
         self._rebuild_user_status_options()
         self._apply_filter()
@@ -881,7 +884,7 @@ class PrintOrdersWindow(BaseToolWindow):
             text = "Loading IW38 orders..."
         else:
             text = ("Open IW38 and click Load IW38 Orders, or open an order in\n"
-                    "IW32 (or type its number above) and click Print This Order.")
+                    "IW32 (or type its number above) and click Process This Order.")
         self._empty_label.config(text=text)
         self._empty_label.place(relx=0.5, rely=0.45, anchor="center")
 
@@ -908,9 +911,7 @@ class PrintOrdersWindow(BaseToolWindow):
         ]
         any_failed = any(
             self._row_status(c) == self.STATUS_FAILED for c in self._all_items)
-        has_files = any(
-            e.get("workorder") or e.get("attachments")
-            for e in self._run_files.values())
+        merge_sources = self._merge_sources()
 
         self._load_btn.config(
             state="disabled" if processing or self._loading else "normal")
@@ -924,7 +925,7 @@ class PrintOrdersWindow(BaseToolWindow):
         self._retry_btn.config(
             state="normal" if any_failed and not processing else "disabled")
         self._merge_btn.config(
-            state="normal" if has_files and not processing else "disabled")
+            state="normal" if merge_sources and not processing else "disabled")
 
         if not processing and not has_rows:
             self._set_primary(self._load_btn, True)
@@ -985,7 +986,7 @@ class PrintOrdersWindow(BaseToolWindow):
         if order:
             self.order_var.set(order)
             self.report_status(
-                f"IW32 order {order} detected - click Print This Order", "info")
+                f"IW32 order {order} detected - click Process This Order", "info")
         else:
             self.report_status(
                 "No order open in IW32; type an order number above.", "warning")
@@ -1020,9 +1021,24 @@ class PrintOrdersWindow(BaseToolWindow):
         order = (order or "").strip()
         if not order:
             return self.report_status("No order number to print", "warning")
+        existing = self._history.find_single_order(order)
+        if existing is not None:
+            started = existing.get("started") or "an earlier run"
+            overwrite = messagebox.askyesno(
+                "Order already printed",
+                f"Order {order} was already printed on {started}.\n\n"
+                "Overwrite that PDF and history entry?",
+                parent=self)
+            if not overwrite:
+                return self.report_status(
+                    f"Order {order} was not printed again", "info")
+        self._overwrite_single = existing
         if not short_text:
             short_text = self._text_for_order(order)
-        self._begin_run([(None, order, short_text)], kind="single")
+        item = self._item_for_order(order)
+        if item is None:
+            item = self._add_order_row(order, short_text)
+        self._begin_run([(item, order, short_text)], kind="single")
 
     def _print_order_from_history(self, order: str, short_text: str):
         if self._processing:
@@ -1036,6 +1052,7 @@ class PrintOrdersWindow(BaseToolWindow):
         if not items:
             return self.report_status("No pending orders in the current view",
                                       "warning")
+        self._overwrite_single = None
         self._begin_run(
             [(item, self._order_num(item), self._short_text_for(item))
              for item in items], kind="batch")
@@ -1048,6 +1065,7 @@ class PrintOrdersWindow(BaseToolWindow):
         if not items:
             return self.report_status("Select one or more pending orders first",
                                       "warning")
+        self._overwrite_single = None
         self._begin_run(
             [(item, self._order_num(item), self._short_text_for(item))
              for item in items], kind="batch")
@@ -1057,6 +1075,7 @@ class PrintOrdersWindow(BaseToolWindow):
                  if self._row_status(c) == self.STATUS_FAILED]
         if not items:
             return self.report_status("No failed orders to retry", "info")
+        self._overwrite_single = None
         self._begin_run(
             [(item, self._order_num(item), self._short_text_for(item))
              for item in items], kind="batch")
@@ -1076,22 +1095,18 @@ class PrintOrdersWindow(BaseToolWindow):
         self._total = len(orders)
         self._done_count = 0
         self._failed_count = 0
-        self._processed_orders = []
-        self._run_files = {}
         self._run_orders = [order for _, order, _ in orders]
         self._run_kind = kind
-        self._run_recorded = False
         self._merged_file = None
         if self._merged_link is not None:
             self._merged_link.config(text="")
 
+        self._ensure_work_dir()
         now = datetime.now()
         self._run_started = now.strftime("%d.%m.%Y %H:%M")
         self._run_started_day = now.strftime("%d.%m.%Y")
-        self._run_dir = self._create_run_dir(self._run_orders)
-        self._run_id = os.path.basename(self._run_dir)
         self.engine.set_variable(
-            "po_export_path", self._run_dir.replace("\\", "\\\\"))
+            "po_export_path", self._work_dir.replace("\\", "\\\\"))
         self.engine.set_variable("po_img_path", self._temp_path)
 
         self._prog["maximum"] = self._total
@@ -1099,17 +1114,40 @@ class PrintOrdersWindow(BaseToolWindow):
         self._prog_label.config(text=f"0 / {self._total}")
         self._pause_btn.config(text="\u23f8 Pause")
         self._refresh_action_state()
-        self.report_status(f"Printing {self._total} order(s)...", "info")
+        self.report_status(f"Processing {self._total} order(s)...", "info")
         self._process_next()
 
-    def _create_run_dir(self, orders: list[str]) -> str:
+    def _ensure_work_dir(self):
+        os.makedirs(self._work_dir, exist_ok=True)
+
+    def _clean_work_dir(self):
+        if not os.path.isdir(self._work_dir):
+            return
+        for name in os.listdir(self._work_dir):
+            path = os.path.join(self._work_dir, name)
+            if os.path.isfile(path):
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+
+    def _reset_session_outputs(self):
+        """Start a fresh batch context after a new list or a clear."""
+        self._order_pdfs = {}
+        self._order_results = {}
+        self._batch_dir = ""
+        self._batch_file = ""
+        self._batch_run_id = ""
+        self._merged_file = None
+        self._overwrite_single = None
+        if self._merged_link is not None:
+            self._merged_link.config(text="")
+        self._clean_work_dir()
+
+    def _new_single_dir(self, order: str) -> str:
         stamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        if len(orders) == 1:
-            label = f"1order_{orders[0]}"
-        else:
-            label = f"{len(orders)}orders_{orders[0]}-{orders[-1]}"
-        safe = re.sub(r"[^\w.-]", "_", label)
-        base = os.path.join(self._output_root, f"{stamp}_{safe}")
+        safe = re.sub(r"[^\w.-]", "_", order)
+        base = os.path.join(self._output_root, f"{stamp}_order_{safe}")
         path = base
         counter = 2
         while os.path.exists(path):
@@ -1117,6 +1155,21 @@ class PrintOrdersWindow(BaseToolWindow):
             counter += 1
         os.makedirs(path, exist_ok=True)
         return path
+
+    def _batch_paths(self) -> tuple[str, str]:
+        if not self._batch_dir:
+            stamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+            base = os.path.join(self._output_root, f"{stamp}_batch")
+            path = base
+            counter = 2
+            while os.path.exists(path):
+                path = f"{base}_{counter}"
+                counter += 1
+            os.makedirs(path, exist_ok=True)
+            self._batch_dir = path
+            self._batch_file = os.path.join(
+                path, f"Processed_{stamp}.pdf")
+        return self._batch_dir, self._batch_file
 
     def _process_next(self):
         if self._stop_requested:
@@ -1266,18 +1319,124 @@ class PrintOrdersWindow(BaseToolWindow):
         ok = status == "printed"
 
         workorder_name = f"{self._active_stem}_workorder.pdf"
-        workorder_path = os.path.join(self._run_dir, workorder_name)
-        self._run_files[order] = {
+        combined = self._combine_order_pdfs(
+            self._active_stem, workorder_name, attachments)
+        result = {
             "order": order,
             "short_text": self._active_text,
             "status": self.STATUS_DONE if ok else self.STATUS_FAILED,
-            "workorder": workorder_name if os.path.exists(workorder_path) else "",
-            "attachments": attachments,
             "error": self._row_errors.get(order, ""),
         }
+        self._order_results[order] = result
+        if combined:
+            self._order_pdfs[order] = combined
+        if ok and combined and self._run_kind == "single":
+            if not self._save_single_output(order, combined):
+                ok = False
         self._mark_done(item, order, ok)
-        if order not in self._processed_orders:
-            self._processed_orders.append(order)
+
+    def _combine_order_pdfs(self, stem: str, workorder_name: str,
+                            attachments_name: str) -> str:
+        """Combine the work-order and photo parts into one PDF and drop the
+        parts. Returns the combined path, or "" when nothing was produced."""
+        workorder_path = os.path.join(self._work_dir, workorder_name)
+        attachments_path = (os.path.join(self._work_dir, attachments_name)
+                            if attachments_name else "")
+        has_workorder = os.path.exists(workorder_path)
+        has_attachments = bool(attachments_path and os.path.exists(attachments_path))
+        if not has_workorder and not has_attachments:
+            return ""
+
+        out = os.path.join(self._work_dir, f"{stem}.pdf")
+        try:
+            if has_workorder and not has_attachments:
+                os.replace(workorder_path, out)
+            elif has_attachments and not has_workorder:
+                os.replace(attachments_path, out)
+            else:
+                writer = PdfWriter()
+                for path in (workorder_path, attachments_path):
+                    reader = PdfReader(path)
+                    for page in reader.pages:
+                        writer.add_page(page)
+                with open(out, "wb") as f:
+                    writer.write(f)
+                for path in (workorder_path, attachments_path):
+                    try:
+                        os.remove(path)
+                    except OSError:
+                        pass
+        except Exception:
+            return ""
+        return out if os.path.exists(out) else ""
+
+    def _save_single_output(self, order: str, combined: str) -> bool:
+        """Store a single-order print as one permanent PDF and update history."""
+        existing = self._overwrite_single
+        if existing is None:
+            existing = self._history.find_single_order(order)
+        try:
+            if existing is not None:
+                folder = existing.get("folder") or self._new_single_dir(order)
+                os.makedirs(folder, exist_ok=True)
+                file_name = os.path.basename(combined)
+                dest = os.path.join(folder, file_name)
+                old_file = existing.get("file") or ""
+                old_path = os.path.join(folder, old_file) if old_file else ""
+                if old_path and os.path.abspath(old_path) != os.path.abspath(dest):
+                    try:
+                        os.remove(old_path)
+                    except OSError:
+                        pass
+                # Drop legacy part files from an older version.
+                for name in os.listdir(folder):
+                    if name.endswith(("_workorder.pdf", "_attachments.pdf")):
+                        try:
+                            os.remove(os.path.join(folder, name))
+                        except OSError:
+                            pass
+                if os.path.abspath(dest) != os.path.abspath(combined):
+                    shutil.copy2(combined, dest)
+                entry = {
+                    "id": existing.get("id", ""),
+                    "folder": folder,
+                    "started": self._run_started,
+                    "started_day": self._run_started_day,
+                    "kind": "single",
+                    "order": order,
+                    "short_text": self._active_text,
+                    "status": self.STATUS_DONE,
+                    "file": file_name,
+                    "error": "",
+                }
+                self._history.upsert_single(order, entry)
+            else:
+                folder = self._new_single_dir(order)
+                file_name = os.path.basename(combined)
+                dest = os.path.join(folder, file_name)
+                shutil.copy2(combined, dest)
+                entry = {
+                    "id": os.path.basename(folder),
+                    "folder": folder,
+                    "started": self._run_started,
+                    "started_day": self._run_started_day,
+                    "kind": "single",
+                    "order": order,
+                    "short_text": self._active_text,
+                    "status": self.STATUS_DONE,
+                    "file": file_name,
+                    "error": "",
+                }
+                self._history.add_run(entry)
+        except OSError as exc:
+            self.report_status(
+                f"Order {order} printed but could not be saved: {exc}", "error")
+            return False
+        self._history.prune(self.RUN_LIMIT)
+        self._refresh_history_btn()
+        if self._history_pane is not None:
+            self._history_pane.refresh()
+        return True
 
     def _mark_done(self, item: str | None, order: str, ok: bool):
         self._set_status(item, self.STATUS_DONE if ok else self.STATUS_FAILED)
@@ -1303,10 +1462,10 @@ class PrintOrdersWindow(BaseToolWindow):
         self._processing = False
         self._paused = False
         self._stop_requested = False
+        self._overwrite_single = None
 
         if self._auto_merge_var.get():
-            self._generate_merged_pdf(auto=True)
-        self._record_run_history()
+            self._merge_done_orders(auto=True)
         self._refresh_action_state()
         self._refresh_history_btn()
         if self._history_pane is not None:
@@ -1401,7 +1560,7 @@ class PrintOrdersWindow(BaseToolWindow):
                  for i in range(0, len(imgs), per)]
 
         name = f"{stem}_attachments.pdf"
-        out = os.path.join(self._run_dir, name)
+        out = os.path.join(self._work_dir, name)
         try:
             if len(pages) == 1:
                 pages[0].save(out, "PDF")
@@ -1447,65 +1606,109 @@ class PrintOrdersWindow(BaseToolWindow):
                 page.paste(img, (x, y))
         return page
 
-    def _generate_merged_pdf(self, auto: bool = False):
-        order_ids = list(self._processed_orders) or list(self._run_orders)
-        if not order_ids:
+    def _done_visible_orders(self) -> list[str]:
+        orders: list[str] = []
+        seen: set[str] = set()
+        for item in self.tree.get_children():
+            if self._row_status(item) != self.STATUS_DONE:
+                continue
+            order = self._order_num(item)
+            if order and order not in seen:
+                seen.add(order)
+                orders.append(order)
+        return orders
+
+    def _source_pdf(self, order: str) -> str | None:
+        path = self._order_pdfs.get(order)
+        if path and os.path.exists(path):
+            return path
+        return self._history.single_pdf_path(order)
+
+    def _merge_sources(self) -> list[tuple[str, str]]:
+        sources: list[tuple[str, str]] = []
+        for order in self._done_visible_orders():
+            path = self._source_pdf(order)
+            if path:
+                sources.append((order, path))
+        return sources
+
+    def _merge_done_orders(self, auto: bool = False):
+        """Merge every DONE row visible in the table, not just this run.
+
+        A single-order print keeps its own file; a batch (or a manual merge
+        after more DONE rows appeared) produces one batch PDF.
+        """
+        sources = self._merge_sources()
+        if not sources:
             if not auto:
-                self.report_status("Nothing to merge yet", "warning")
+                self.report_status(
+                    "No DONE orders with a stored PDF to merge", "warning")
+            return
+        if auto and self._run_kind == "single" and len(sources) < 2:
+            return
+        if auto and self._run_kind == "batch" and len(sources) < 1:
             return
 
         writer = PdfWriter()
-        merged_orders = 0
-        for order in order_ids:
-            entry = self._run_files.get(order)
-            if not entry:
+        merged: list[tuple[str, str]] = []
+        for order, path in sources:
+            try:
+                reader = PdfReader(path)
+            except Exception:
                 continue
-            files = [entry.get("workorder"), entry.get("attachments")]
-            added = False
-            for name in files:
-                if not name:
-                    continue
-                path = os.path.join(self._run_dir, name)
-                if not os.path.exists(path):
-                    continue
-                try:
-                    reader = PdfReader(path)
-                except Exception:
-                    continue
-                for page in reader.pages:
-                    writer.add_page(page)
-                added = True
-            if added:
-                merged_orders += 1
-                if len(writer.pages) % 2 == 1:
-                    writer.add_blank_page()
-
+            for page in reader.pages:
+                writer.add_page(page)
+            merged.append((order, path))
+            if len(writer.pages) % 2 == 1:
+                writer.add_blank_page()
         if not writer.pages:
             if not auto:
-                self.report_status("No completed PDFs to merge", "warning")
+                self.report_status("No readable PDFs to merge", "warning")
             return
 
-        first = order_ids[0]
-        last = order_ids[-1]
-        name = (f"merged_{first}.pdf" if first == last
-                else f"merged_{first}-{last}.pdf")
-        out = os.path.join(self._run_dir, name)
+        batch_dir, batch_file = self._batch_paths()
+        os.makedirs(batch_dir, exist_ok=True)
         try:
-            with open(out, "wb") as f:
+            with open(batch_file, "wb") as f:
                 writer.write(f)
         except OSError as exc:
             self.report_status(f"Could not write merged PDF: {exc}", "error")
             return
 
-        self._merged_file = out
+        self._merged_file = batch_file
+        name = os.path.basename(batch_file)
         if self._merged_link is not None:
             self._merged_link.config(text=name)
-        self._history.update_run(self._run_id, merged=name)
+
+        payload = []
+        for order, _path in merged:
+            result = self._order_results.get(order, {})
+            payload.append({
+                "order": order,
+                "short_text": result.get("short_text", ""),
+                "status": self.STATUS_DONE,
+            })
+        now = datetime.now()
+        run = {
+            "id": os.path.basename(batch_dir),
+            "folder": batch_dir,
+            "started": now.strftime("%d.%m.%Y %H:%M"),
+            "started_day": now.strftime("%d.%m.%Y"),
+            "kind": "batch",
+            "file": name,
+            "done": len(merged),
+            "failed": 0,
+            "orders": payload,
+        }
+        self._batch_run_id = run["id"]
+        self._history.upsert_batch(run["id"], run)
+        self._history.prune(self.RUN_LIMIT)
+        self._refresh_history_btn()
         if self._history_pane is not None:
             self._history_pane.refresh()
         if not auto:
             self.report_status(
-                f"Merged {merged_orders} order(s) into {name}", "success")
+                f"Merged {len(merged)} DONE order(s) into {name}", "success")
 
     def _open_merged(self):
         if self._merged_file and os.path.exists(self._merged_file):
@@ -1521,40 +1724,6 @@ class PrintOrdersWindow(BaseToolWindow):
         if os.path.isdir(self._output_root):
             self._open_path(self._output_root)
 
-    # ── history ─────────────────────────────────────────────────────────────
-    def _record_run_history(self):
-        if not self._run_dir or self._run_recorded:
-            return
-        orders = []
-        for order in self._run_orders:
-            entry = self._run_files.get(order)
-            if entry is not None:
-                orders.append(entry)
-            elif order in self._processed_orders:
-                orders.append({
-                    "order": order, "short_text": "", "status": self.STATUS_FAILED,
-                    "workorder": "", "attachments": "",
-                    "error": self._row_errors.get(order, ""),
-                })
-        if not orders:
-            return
-        merged = os.path.basename(self._merged_file) if self._merged_file else ""
-        run = {
-            "id": self._run_id,
-            "folder": self._run_dir,
-            "started": self._run_started,
-            "started_day": self._run_started_day,
-            "kind": self._run_kind,
-            "done": self._done_count - self._failed_count,
-            "failed": self._failed_count,
-            "merged": merged,
-            "orders": orders,
-        }
-        self._history.add_run(run)
-        self._history.prune(self.RUN_LIMIT)
-        self._run_recorded = True
-        self._refresh_history_btn()
-
     # ── row helpers ─────────────────────────────────────────────────────────
     def _short_text_for(self, item: str | None) -> str:
         if item is None:
@@ -1567,6 +1736,34 @@ class PrintOrdersWindow(BaseToolWindow):
             if norm in self.SHORT_TEXT_HEADERS and i < len(values):
                 return str(values[i]).strip()
         return ""
+
+    def _item_for_order(self, order: str) -> str | None:
+        for item in self._all_items:
+            if self._order_num(item) == order:
+                return item
+        return None
+
+    def _add_order_row(self, order: str, short_text: str) -> str | None:
+        """Give a typed/opened order a DONE-able row when a list is loaded."""
+        cols = list(self.tree["columns"])
+        if not cols:
+            return None
+        values = [""] * len(cols)
+        order_idx = self._order_col_idx()
+        if 0 <= order_idx < len(values):
+            values[order_idx] = order
+        for i, col in enumerate(cols):
+            norm = " ".join(str(col).split()).casefold()
+            if norm in self.SHORT_TEXT_HEADERS:
+                values[i] = short_text
+        if "Progress" in cols:
+            values[cols.index("Progress")] = self.STATUS_PENDING
+        item = self.tree.insert("", "end", values=values)
+        self._all_items.append(item)
+        self._apply_row_visual(item, self.STATUS_PENDING)
+        self._apply_filter()
+        self._update_counters()
+        return item
 
     def _text_for_order(self, order: str) -> str:
         for item in self._all_items:
@@ -1631,14 +1828,10 @@ class PrintOrdersWindow(BaseToolWindow):
 
     # ── row actions ─────────────────────────────────────────────────────────
     def _pdf_for_order(self, order: str) -> str | None:
-        entry = self._run_files.get(order)
-        if entry:
-            for kind in ("workorder", "attachments"):
-                name = entry.get(kind) or ""
-                path = os.path.join(self._run_dir, name)
-                if name and os.path.exists(path):
-                    return path
-        return self._history.pdf_path(order)
+        path = self._order_pdfs.get(order)
+        if path and os.path.exists(path):
+            return path
+        return self._history.pdf_for_order(order)
 
     def _open_order_in_iw32(self, order: str):
         if self._processing:
@@ -1670,7 +1863,7 @@ class PrintOrdersWindow(BaseToolWindow):
             menu.add_command(label="Open in IW32",
                              command=lambda: self._open_order_in_iw32(order))
             menu.add_command(
-                label="Print This Order",
+                label="Process This Order",
                 command=lambda o=order: self._print_single(o))
             menu.add_command(
                 label="Copy Order Number",
@@ -1707,6 +1900,7 @@ class PrintOrdersWindow(BaseToolWindow):
         self.grid_manager.clear()
         self._all_items = []
         self._row_errors.clear()
+        self._reset_session_outputs()
         self._filter_var.set("")
         self._rebuild_user_status_options()
         self._apply_filter()
@@ -1716,16 +1910,24 @@ class PrintOrdersWindow(BaseToolWindow):
             self.report_status("List cleared", "info")
 
     # ── temp / close ────────────────────────────────────────────────────────
+    def _remove_work_dir(self):
+        shutil.rmtree(self._work_dir, ignore_errors=True)
+        try:
+            os.rmdir(self._work_root)
+        except OSError:
+            pass
+
     def _on_close(self):
         if self._processing:
             keep_going = messagebox.askyesno(
-                "Print Orders",
-                "Printing is still running.\n\nStop and close the window?",
+                "Process Orders",
+                "Processing is still running.\n\nStop and close the window?",
                 parent=self)
             if not keep_going:
                 return
             self._stop_requested = True
         self._wipe_temp_files()
+        self._remove_work_dir()
         self.destroy()
 
     def _wipe_temp_files(self):

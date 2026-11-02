@@ -1989,7 +1989,7 @@ class PurchaseRequestHelperWindow(BaseToolWindow):
     def _export_filepath(self):
         return os.path.join(self._export_path, self._export_file)
 
-    # ---- attachment list via getCellValue (like Print Orders) --------
+    # ---- attachment list via getCellValue (like Process Orders) --------
     def _read_attach_list(self):
         """Start reading the attachment grid via getCellValue loop.
         Clears the treeview immediately so old entries don't linger visually

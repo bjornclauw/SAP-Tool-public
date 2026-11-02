@@ -1,23 +1,27 @@
-"""PrintHistoryStore -- local JSON history of Print Orders runs.
+"""PrintHistoryStore -- local JSON history of Process Orders runs.
 
-Each run is one folder under ``data/print_output/`` holding the work-order
-PDFs, attachment PDFs and optional merged PDF it produced:
+Only final artifacts are stored: one combined PDF per single-order print, and
+one merged PDF per batch/session. The intermediate work-order and photo
+parts are not kept.
 
-    {"runs": [{
-        "id": "2026-11-02_143000_3orders",
-        "folder": "C:/.../data/print_output/2026-11-02_143000_3orders",
-        "started": "02.11.2026 14:30",
-        "started_day": "02.11.2026",
-        "kind": "batch" | "single",
-        "done": 2, "failed": 1,
-        "merged": "merged_4001235-4001240.pdf",
-        "orders": [{
-            "order": "4001235", "short_text": "...", "status": "Done",
-            "workorder": "WO_4001235_....pdf",
-            "attachments": "WO_4001235_..._attachments.pdf",
-            "error": ""
-        }]
-    }]}
+    {"runs": [
+      {"id": "2026-11-02_143000_order_4001235",
+       "folder": "...", "started": "02.11.2026 14:30",
+       "started_day": "02.11.2026", "kind": "single",
+       "order": "4001235", "short_text": "...", "status": "Done",
+       "file": "WO_4001235_....pdf", "error": ""},
+
+      {"id": "2026-11-02_150000_batch",
+       "folder": "...", "started": "02.11.2026 15:00",
+       "started_day": "02.11.2026", "kind": "batch",
+       "file": "Processed_2026-11-02_1500.pdf",
+       "done": 5, "failed": 1,
+       "orders": [{"order": "4001235", "short_text": "...",
+                   "status": "Done"}]}
+    ]}
+
+Older entries from the previous schema are tolerated: ``file_path`` falls
+back to ``merged`` or the first order's ``workorder``/``attachments``.
 
 Only the latest 30 run folders are kept; older ones are deleted together
 with their history entries. Pure data logic, no UI.
@@ -124,6 +128,57 @@ class PrintHistoryStore:
     def latest_run(self) -> dict | None:
         return self._data["runs"][0] if self._data["runs"] else None
 
+    def file_path(self, run: dict) -> str | None:
+        """Absolute path to a run's stored PDF, new or legacy schema."""
+        name = run.get("file") or run.get("merged") or ""
+        if not name:
+            for entry in run.get("orders", []) or []:
+                for key in ("workorder", "attachments"):
+                    if entry.get(key):
+                        name = entry[key]
+                        break
+                if name:
+                    break
+        if not name:
+            return None
+        path = os.path.join(run.get("folder", ""), name)
+        return path if os.path.exists(path) else None
+
+    def find_single_order(self, order: str) -> dict | None:
+        order = (order or "").strip()
+        if not order:
+            return None
+        for run in self._data["runs"]:
+            if run.get("kind") != "single":
+                continue
+            run_order = str(run.get("order", "")).strip()
+            if not run_order:
+                entries = run.get("orders", []) or []
+                run_order = str(entries[0].get("order", "")).strip() if entries else ""
+            if run_order == order:
+                return run
+        return None
+
+    def single_pdf_path(self, order: str) -> str | None:
+        run = self.find_single_order(order)
+        return self.file_path(run) if run else None
+
+    def pdf_for_order(self, order: str) -> str | None:
+        """Newest stored PDF that contains ``order`` (single, then batch)."""
+        order = (order or "").strip()
+        if not order:
+            return None
+        path = self.single_pdf_path(order)
+        if path:
+            return path
+        for run in self._data["runs"]:
+            for entry in run.get("orders", []) or []:
+                if str(entry.get("order", "")).strip() == order:
+                    path = self.file_path(run)
+                    if path:
+                        return path
+        return None
+
     def find_order_latest(self, order: str) -> tuple[dict, dict] | None:
         order = (order or "").strip()
         if not order:
@@ -135,7 +190,7 @@ class PrintHistoryStore:
         return None
 
     def pdf_path(self, order: str, kind: str = "workorder") -> str | None:
-        """Absolute path to the newest file for ``order`` and ``kind``."""
+        """Legacy lookup: a specific part file for ``order``."""
         found = self.find_order_latest(order)
         if found is None:
             return None
@@ -145,3 +200,29 @@ class PrintHistoryStore:
             return None
         path = os.path.join(run.get("folder", ""), name)
         return path if os.path.exists(path) else None
+
+    # ---- upserts -----------------------------------------------------
+    def upsert_single(self, order: str, entry: dict) -> dict:
+        """Replace the single-order entry for ``order`` or add a new one."""
+        runs = self._data["runs"]
+        for index, existing in enumerate(runs):
+            if (existing.get("kind") == "single"
+                    and str(existing.get("order", "")).strip() == order):
+                existing.update(entry)
+                runs.pop(index)
+                runs.insert(0, existing)
+                self.save()
+                return existing
+        return self.add_run(entry)
+
+    def upsert_batch(self, run_id: str, run: dict) -> dict:
+        """Update the session's batch entry, or add it the first time."""
+        runs = self._data["runs"]
+        for index, existing in enumerate(runs):
+            if existing.get("id") == run_id:
+                existing.update(run)
+                runs.pop(index)
+                runs.insert(0, existing)
+                self.save()
+                return existing
+        return self.add_run(run)

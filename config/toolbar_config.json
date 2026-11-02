@@ -142,13 +142,13 @@
       },
       "po_export_iw38_btn": {
         "text": "Load IW38 Orders",
-        "script": "' Print Orders: export IW38 grid\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[11]/menu[2]\").select\nsession.findById(\"wnd[1]/usr/subSUBSCREEN_STEPLOOP:SAPLSPO5:0150/sub:SAPLSPO5:0150/radSPOPLI-SELFLAG[1,0]\").select\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nsession.findById(\"wnd[1]/usr/ctxtDY_PATH\").text = \"{{po_import_path}}\"\nsession.findById(\"wnd[1]/usr/ctxtDY_FILENAME\").text = \"{{po_import_file}}\"\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\n{{ export_done }} = \"1\"\n",
+        "script": "' Process Orders: export IW38 grid\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[11]/menu[2]\").select\nsession.findById(\"wnd[1]/usr/subSUBSCREEN_STEPLOOP:SAPLSPO5:0150/sub:SAPLSPO5:0150/radSPOPLI-SELFLAG[1,0]\").select\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nsession.findById(\"wnd[1]/usr/ctxtDY_PATH\").text = \"{{po_import_path}}\"\nsession.findById(\"wnd[1]/usr/ctxtDY_FILENAME\").text = \"{{po_import_file}}\"\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\n{{ export_done }} = \"1\"\n",
         "script_name": "Load IW38 Orders"
       },
       "po_start_btn": {
-        "text": "Print All",
+        "text": "Process All",
         "script": "",
-        "script_name": "Start Processing"
+        "script_name": "Process All"
       },
       "po_pause_btn": {
         "text": "⏸ Pause",
@@ -161,28 +161,28 @@
         "script_name": "Merge PDFs"
       },
       "po_print_open_order_btn": {
-        "text": "Print This Order",
+        "text": "Process This Order",
         "script": "",
-        "script_name": "Print This Order"
+        "script_name": "Process This Order"
       },
       "po_read_open_order": {
         "text": "Read Open Order",
-        "script": "' Print Orders: read the order number currently open in IW32\n_order = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/txtCAUFVD-AUFNR\").text\n{{ po_current_order }} = _order\n",
+        "script": "' Process Orders: read the order number currently open in IW32\n_order = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/txtCAUFVD-AUFNR\").text\n{{ po_current_order }} = _order\n",
         "script_name": "Read Open Order in IW32"
       },
       "po_open_order": {
         "text": "Open Order",
-        "script": "' Print Orders: open work order in IW32\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = \"{{po_current_order}}\"\nsession.findById(\"wnd[0]\").sendVKey 0\n",
+        "script": "' Process Orders: open work order in IW32\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = \"{{po_current_order}}\"\nsession.findById(\"wnd[0]\").sendVKey 0\n",
         "script_name": "Open Order in IW32"
       },
       "po_print_pdf": {
         "text": "Print to Spool",
-        "script": "' Print Orders: print work order to spool via IW32 menu\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[6]/menu[0]\").select\nsession.findById(\"wnd[1]/tbar[0]/btn[16]\").press\nsession.findById(\"wnd[1]/usr/chkSSFPP-TDIMMED\").selected = false\nsession.findById(\"wnd[1]/usr/chkSSFPP-TDIMMED\").setFocus\nsession.findById(\"wnd[1]/tbar[0]/btn[86]\").press\nsession.findById(\"wnd[1]/tbar[0]/btn[12]\").press\n",
+        "script": "' Process Orders: print work order to spool via IW32 menu\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[6]/menu[0]\").select\nsession.findById(\"wnd[1]/tbar[0]/btn[16]\").press\nsession.findById(\"wnd[1]/usr/chkSSFPP-TDIMMED\").selected = false\nsession.findById(\"wnd[1]/usr/chkSSFPP-TDIMMED\").setFocus\nsession.findById(\"wnd[1]/tbar[0]/btn[86]\").press\nsession.findById(\"wnd[1]/tbar[0]/btn[12]\").press\n",
         "script_name": "Print Work Order to Spool"
       },
       "po_export_attachments": {
         "text": "Export Attachments",
-        "script": "' Print Orders: select IHKD tab, read row count (TOGGLE might break getCellValue)\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD\").select\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").pressToolbarButton \"TOGGLE\"\nrowCount = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").RowCount\n{{ po_row_count }} = rowCount\n",
+        "script": "' Process Orders: select IHKD tab, read row count (TOGGLE might break getCellValue)\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD\").select\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").pressToolbarButton \"TOGGLE\"\nrowCount = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").RowCount\n{{ po_row_count }} = rowCount\n",
         "script_name": "Read IHKD Grid + Toggle"
       },
       "po_read_doknr": {
@@ -192,12 +192,12 @@
       },
       "po_export_one_attachment": {
         "text": "Export 1 Image",
-        "script": "' Print Orders: export one attachment via menu bar\n' Reads: {{po_attach_row_idx}}, {{po_attach_target}}\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").currentCellColumn = \"DOKNR\"\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").currentCellRow = {{po_attach_row_idx}}\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").clickCurrentCell\nsession.findById(\"wnd[0]/mbar/menu[5]/menu[5]\").select\nsession.findById(\"wnd[1]/usr/ctxtDRAW-FILEP\").text = \"{{po_attach_target}}\"\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nsession.findById(\"wnd[0]/tbar[0]/btn[3]\").press\n",
+        "script": "' Process Orders: export one attachment via menu bar\n' Reads: {{po_attach_row_idx}}, {{po_attach_target}}\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").currentCellColumn = \"DOKNR\"\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").currentCellRow = {{po_attach_row_idx}}\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").clickCurrentCell\nsession.findById(\"wnd[0]/mbar/menu[5]/menu[5]\").select\nsession.findById(\"wnd[1]/usr/ctxtDRAW-FILEP\").text = \"{{po_attach_target}}\"\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nsession.findById(\"wnd[0]/tbar[0]/btn[3]\").press\n",
         "script_name": "Export One Image Attachment"
       },
       "po_download_image": {
         "text": "SP02 PDF & Cleanup",
-        "script": "' Print Orders: go to SP02, save spool as PDF, delete spool\n' Reads: {{po_export_path}}, {{po_pdf_filename}}, {{po_current_order}}\n' Writes: {{po_print_status}}\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nSP02\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/chk[1,3]\").selected = true\nsession.findById(\"wnd[0]/usr/chk[1,3]\").setFocus\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[2]/menu[2]\").select\nsession.findById(\"wnd[1]/usr/ctxtDY_PATH\").text = \"{{po_export_path}}\"\nsession.findById(\"wnd[1]/usr/ctxtDY_FILENAME\").text = \"{{po_pdf_filename}}\"\nsession.findById(\"wnd[1]/usr/ctxtDY_FILENAME\").caretPosition = 16\nsession.findById(\"wnd[1]/tbar[0]/btn[11]\").press\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[7]\").select\nsession.findById(\"wnd[1]/usr/btnSPOP-OPTION1\").press\n{{ po_print_status }} = \"printed\"\n",
+        "script": "' Process Orders: go to SP02, save spool as PDF, delete spool\n' Reads: {{po_export_path}}, {{po_pdf_filename}}, {{po_current_order}}\n' Writes: {{po_print_status}}\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nSP02\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/chk[1,3]\").selected = true\nsession.findById(\"wnd[0]/usr/chk[1,3]\").setFocus\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[2]/menu[2]\").select\nsession.findById(\"wnd[1]/usr/ctxtDY_PATH\").text = \"{{po_export_path}}\"\nsession.findById(\"wnd[1]/usr/ctxtDY_FILENAME\").text = \"{{po_pdf_filename}}\"\nsession.findById(\"wnd[1]/usr/ctxtDY_FILENAME\").caretPosition = 16\nsession.findById(\"wnd[1]/tbar[0]/btn[11]\").press\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[7]\").select\nsession.findById(\"wnd[1]/usr/btnSPOP-OPTION1\").press\n{{ po_print_status }} = \"printed\"\n",
         "script_name": "SP02 Export & Delete"
       },
       "si_create_notification": {
@@ -217,7 +217,7 @@
       },
       "prh_download_attach": {
         "text": "Download Attachment",
-        "script": "' Download one attachment from IW32 IHKD (Print Orders pattern)\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").currentCellColumn = \"DOKNR\"\n\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").currentCellRow = {{prh_dl_row}}\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").clickCurrentCell\nsession.findById(\"wnd[0]/mbar/menu[5]/menu[5]\").select\nsession.findById(\"wnd[1]/usr/ctxtDRAW-FILEP\").text = {{prh_dl_target}}\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nsession.findById(\"wnd[0]/tbar[0]/btn[3]\").press\n{{ export_done }} = \"1\"",
+        "script": "' Download one attachment from IW32 IHKD (Process Orders pattern)\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").currentCellColumn = \"DOKNR\"\n\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").currentCellRow = {{prh_dl_row}}\nsession.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell\").clickCurrentCell\nsession.findById(\"wnd[0]/mbar/menu[5]/menu[5]\").select\nsession.findById(\"wnd[1]/usr/ctxtDRAW-FILEP\").text = {{prh_dl_target}}\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nsession.findById(\"wnd[0]/tbar[0]/btn[3]\").press\n{{ export_done }} = \"1\"",
         "script_name": "Download Attachment"
       },
       "si_save_notification": {
@@ -242,13 +242,13 @@
       },
       "po_read_tcode": {
         "text": "Detect SAP Screen",
-        "script": "' Print Orders: read the active transaction\n_tcode = session.Info.Transaction\n{{ po_tcode }} = _tcode\n",
+        "script": "' Process Orders: read the active transaction\n_tcode = session.Info.Transaction\n{{ po_tcode }} = _tcode\n",
         "script_name": "Detect SAP Screen"
       },
       "po_print_selected_btn": {
-        "text": "Print Selected",
+        "text": "Process Selected",
         "script": "",
-        "script_name": "Print Selected"
+        "script_name": "Process Selected"
       },
       "po_stop_btn": {
         "text": "Stop",
