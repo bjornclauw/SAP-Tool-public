@@ -902,6 +902,13 @@
         "path": "wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell"
       }
     ],
+    "po_read_open_order": [
+      {
+        "kind": "READ_PROPERTY",
+        "member": "text",
+        "path": "wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/txtCAUFVD-AUFNR"
+      }
+    ],
     "prh_download_attach": [
       {
         "kind": "SET_PROPERTY",

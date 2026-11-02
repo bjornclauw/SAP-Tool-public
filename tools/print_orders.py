@@ -62,6 +62,7 @@ class PrintOrdersWindow(BaseToolWindow):
         self._paused = False
         self._stop_requested = False
         self._done_count = 0
+        self._failed_count = 0
         self._total = 0
         self._processed_orders: list[str] = []
         self._merged_file: str | None = None
@@ -126,6 +127,16 @@ class PrintOrdersWindow(BaseToolWindow):
             bg=ui_styles.COLORS["primary"], fg="#ffffff",
         )
         self._export_btn.pack(side="left")
+
+        # One order already open in IW32: no IW38 export needed. The order
+        # number is read from the open screen (see po_read_open_order).
+        self._single_btn = CustomButton(
+            bar, "buttons", "po_print_open_order_btn",
+            text="Print Open Order",
+            command=self._print_open_order,
+            bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"],
+        )
+        self._single_btn.pack(side="left", padx=(ui_styles.SPACING["tight"], 0))
 
         self._count_label = styled_label(
             bar, "Orders: 0", font=ui_styles.FONTS["body"], bg=ui_styles.COLORS["bg"])
@@ -233,7 +244,8 @@ class PrintOrdersWindow(BaseToolWindow):
                                      bg=ui_styles.COLORS["bg"])
         scripts_label.pack(side="left", padx=(0, ui_styles.SPACING["tight"]))
 
-        for _id, _label in [("po_open_order", "Open"), ("po_print_pdf", "Print"),
+        for _id, _label in [("po_read_open_order", "Read Open"),
+                             ("po_open_order", "Open"), ("po_print_pdf", "Print"),
                              ("po_export_attachments", "Attach"),
                              ("po_export_one_attachment", "Export1"),
                              ("po_read_doknr", "DOKNR"),
@@ -284,14 +296,27 @@ class PrintOrdersWindow(BaseToolWindow):
     def _add_status_column(self):
         current_cols = list(self.tree["columns"])
         if "Progress" not in current_cols:
-            old_heading_texts = {
-                c: self.tree.heading(c).get("text", c) for c in current_cols
+            # Reassigning -columns resets every existing column to ttk defaults
+            # (width 200, stretch=1), which discards the autosized widths and
+            # lets the grid squash itself to the window instead of scrolling.
+            saved = {
+                c: {
+                    "text": self.tree.heading(c).get("text", c),
+                    "width": self.tree.column(c, "width"),
+                    "minwidth": self.tree.column(c, "minwidth"),
+                    "stretch": self.tree.column(c, "stretch"),
+                    "anchor": self.tree.column(c, "anchor"),
+                }
+                for c in current_cols
             }
             self.tree["columns"] = current_cols + ["Progress"]
-            for c in current_cols:
-                self.tree.heading(c, text=old_heading_texts.get(c, c))
+            for c, opts in saved.items():
+                self.tree.heading(c, text=opts["text"])
+                self.tree.column(c, width=opts["width"], minwidth=opts["minwidth"],
+                                 stretch=opts["stretch"], anchor=opts["anchor"])
             self.tree.heading("Progress", text="Progress")
-            self.tree.column("Progress", width=100, anchor="center")
+            self.tree.column("Progress", width=100, minwidth=0, stretch=False,
+                             anchor="center")
 
         # Find the SAP status column by name in export headers, then locate it
         # in the treeview columns (values are in treeview column order now).
@@ -331,8 +356,10 @@ class PrintOrdersWindow(BaseToolWindow):
         self._export_btn.config(state=state)
         if disabled:
             self._start_btn.config(state="disabled")
+            self._single_btn.config(state="disabled")
             self._gen_btn.config(state="disabled")
         elif not self._processing:
+            self._single_btn.config(state="normal")
             self._gen_btn.config(state="normal")
             # start button enabled only if there are orders
             if self.tree.get_children():
@@ -350,17 +377,48 @@ class PrintOrdersWindow(BaseToolWindow):
         if not items:
             return self.report_status("No pending orders", "warning")
 
+        self._begin_run([(item, self._order_num(item)) for item in items])
+
+    def _print_open_order(self):
+        """Print the one order already open in IW32, without an IW38 export.
+
+        The order number is read off the open screen first; the regular
+        per-order pipeline then prints, collects attachments and builds the
+        filler PDF, exactly as it does for a batch row.
+        """
+        if self._processing:
+            return self.report_status("Stop processing first", "warning")
+
+        # Clear it first: a failed read must not fall through to a stale
+        # order number left over from the previous batch.
+        self.engine.set_variable("po_current_order", "")
+        self.report_status("Reading order open in IW32...", "info")
+        self.run_script("po_read_open_order", title="Read Open Order",
+                        on_success=self._on_open_order_read)
+
+    def _on_open_order_read(self):
+        order = (self.engine.get_variable("po_current_order") or "").strip()
+        if not order:
+            return self.report_status(
+                "No order open in IW32 (open one, or use Export IW38 Grid)",
+                "warning",
+            )
+        self._begin_run([(None, order)])
+
+    def _begin_run(self, orders: list[tuple[str | None, str]]):
         self._processing = True
         self._paused = False
         self._stop_requested = False
-        self._pending_items = items
-        self._total = len(items)
+        self._pending_items = orders
+        self._total = len(orders)
         self._done_count = 0
+        self._failed_count = 0
         self._processed_orders = []
 
         self._start_btn.config(text="\u25a0 Stop")
         self._pause_btn.config(state="normal", text="\u23f8 Pause")
         self._export_btn.config(state="disabled")
+        self._single_btn.config(state="disabled")
         self._gen_btn.config(state="disabled")
         self._prog["maximum"] = self._total
         self._prog["value"] = 0
@@ -376,11 +434,11 @@ class PrintOrdersWindow(BaseToolWindow):
         if not self._pending_items:
             return self._done()
 
-        item = self._pending_items.pop(0)
-        order = self._order_num(item)
+        item, order = self._pending_items.pop(0)
         if not order:
             self._set_status(item, self.STATUS_FAILED)
             self._done_count += 1
+            self._failed_count += 1
             self._update_progress()
             return self.after(50, self._process_next)
 
@@ -404,7 +462,7 @@ class PrintOrdersWindow(BaseToolWindow):
 
     MAX_ATTACHMENTS = 4
 
-    def _on_step(self, item: str, order: str, step_idx: int):
+    def _on_step(self, item: str | None, order: str, step_idx: int):
         if self._stop_requested:
             return self._mark_done(item, order, False)
 
@@ -436,7 +494,7 @@ class PrintOrdersWindow(BaseToolWindow):
                 lambda: self._on_step(item, order, next_step),
             )
 
-    def _on_attach_tab_done(self, item: str, order: str, next_step: int):
+    def _on_attach_tab_done(self, item: str | None, order: str, next_step: int):
         self._row_count = int(self.engine.get_variable("po_row_count", "0"))
         self._doknr_read_idx = 0
         self._pending_attach_rows = []
@@ -503,7 +561,7 @@ class PrintOrdersWindow(BaseToolWindow):
         self._attach_export_idx += 1
         self._export_next_attachment()
 
-    def _finish_order(self, item: str, order: str):
+    def _finish_order(self, item: str | None, order: str):
         self._create_image_pdf(order)
         status = self.engine.get_variable("po_print_status", "")
         ok = status == "printed"
@@ -511,9 +569,11 @@ class PrintOrdersWindow(BaseToolWindow):
         if order not in self._processed_orders:
             self._processed_orders.append(order)
 
-    def _mark_done(self, item: str, order: str, ok: bool):
+    def _mark_done(self, item: str | None, order: str, ok: bool):
         self._set_status(item, self.STATUS_DONE if ok else self.STATUS_FAILED)
         self._done_count += 1
+        if not ok:
+            self._failed_count += 1
         self._update_progress()
         self.report_status(
             f"Order {order}: {'Done' if ok else 'Failed'}",
@@ -528,10 +588,11 @@ class PrintOrdersWindow(BaseToolWindow):
         self._start_btn.config(text="\u25b6 Start")
         self._pause_btn.config(state="disabled", text="\u23f8 Pause")
         self._export_btn.config(state="normal")
+        self._single_btn.config(state="normal")
         self._gen_btn.config(state="normal")
 
-        done = sum(1 for c in self.tree.get_children() if self._row_status(c) == self.STATUS_DONE)
-        failed = sum(1 for c in self.tree.get_children() if self._row_status(c) == self.STATUS_FAILED)
+        done = self._done_count - self._failed_count
+        failed = self._failed_count
         if failed:
             self.report_status(f"{done} done, {failed} failed — re-run Start to retry", "warning")
         else:
@@ -645,14 +706,18 @@ class PrintOrdersWindow(BaseToolWindow):
         v = self.tree.item(item, "values")
         return v[-1].strip() if v else self.STATUS_PENDING
 
-    def _set_status(self, item: str, s: str):
+    def _set_status(self, item: str | None, s: str):
+        if item is None:
+            return
         v = list(self.tree.item(item, "values"))
         if v:
             v[-1] = s
             self.tree.item(item, values=v)
         self._apply_row_visual(item, s)
 
-    def _apply_row_visual(self, item: str, status: str):
+    def _apply_row_visual(self, item: str | None, status: str):
+        if item is None:
+            return
         tag = self.STATUS_TAGS.get(status, "po_pending")
         self.tree.item(item, tags=(tag,))
 
@@ -721,9 +786,13 @@ class PrintOrdersWindow(BaseToolWindow):
         for g in groups.values():
             g["pics"].sort()
 
+        order_ids = [self._order_num(item) for item in self.tree.get_children()]
+        if not order_ids:
+            # Single-order print has no grid row; merge what this run produced.
+            order_ids = list(self._processed_orders)
+
         writer = PdfWriter()
-        for item in self.tree.get_children():
-            oid = self._order_num(item)
+        for oid in order_ids:
             if oid not in groups:
                 continue
             g = groups[oid]

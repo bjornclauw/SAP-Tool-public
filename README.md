@@ -1,5 +1,10 @@
 # SAP Work Order Tool
 
+## 2026.11.02.1 — 2026-11-02
+
+- Print Orders can print the single order already open in IW32, without exporting the IW38 grid first.
+- Fixed the Print Orders grid squashing its columns instead of scrolling horizontally.
+
 ## 2026.10.31.5 — 2026-10-31
 
 - SAP Import: cancelled, failed and pending rows now follow the same rules everywhere, so status chips, colours and counters can no longer disagree after a run.

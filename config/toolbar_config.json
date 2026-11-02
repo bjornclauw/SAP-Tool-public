@@ -160,6 +160,16 @@
         "script": "",
         "script_name": "Generate PDF"
       },
+      "po_print_open_order_btn": {
+        "text": "Print Open Order",
+        "script": "",
+        "script_name": "Print Open Order"
+      },
+      "po_read_open_order": {
+        "text": "Read Open Order",
+        "script": "' Print Orders: read the order number currently open in IW32\n_order = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/txtCAUFVD-AUFNR\").text\n{{ po_current_order }} = _order\n",
+        "script_name": "Read Open Order in IW32"
+      },
       "po_open_order": {
         "text": "Open Order",
         "script": "' Print Orders: open work order in IW32\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = \"{{po_current_order}}\"\nsession.findById(\"wnd[0]\").sendVKey 0\n",
