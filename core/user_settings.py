@@ -29,6 +29,11 @@ DEFAULTS: dict[str, object] = {
     "si_pg": "WP1",
     "si_system": "PRD400",
     "si_upload_pics": "YES",
+    # Print Orders behaviour (per-machine).
+    "po_auto_merge": True,
+    "po_stop_on_error": False,
+    "po_max_attachments": "4",
+    "po_pdf_layout": "auto",
 }
 
 

@@ -71,6 +71,10 @@ tmp_user/
 # Local ATB history (per-machine, personal data)
 data/atb_history.json
 
+# Print Orders output + history (per-machine)
+data/print_output/
+data/print_history.json
+
 # CodeGraph index (local cache)
 .codegraph/
 

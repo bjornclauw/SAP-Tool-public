@@ -1,5 +1,12 @@
 # SAP Work Order Tool
 
+## 2026.11.02.2 — 2026-11-02
+
+- Print Orders now loads the open IW38 list automatically, keeps a manual Load button, and can print one order, selected rows, or all visible rows.
+- Print Orders supports text and SAP user-status filtering (multi-select), retry failed orders, row multi-select, double-click actions and a vertical scrollbar.
+- Completed PDFs are kept in a dated output folder with clear file names, and a searchable History pane lists recent runs, opens their PDFs and re-prints an order.
+- Print Orders settings (auto-merge, stop on error, maximum attachments, PDF layout) and script editing now live in menus instead of a row of small buttons.
+
 ## 2026.11.02.1 — 2026-11-02
 
 - Print Orders can print the single order already open in IW32, without exporting the IW38 grid first.

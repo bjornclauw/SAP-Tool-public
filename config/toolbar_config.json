@@ -141,12 +141,12 @@
         "script_name": "Export Results List"
       },
       "po_export_iw38_btn": {
-        "text": "Export IW38 Grid",
-        "script": "' Print Orders: export IW38 grid\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[11]/menu[2]\").select\nsession.findById(\"wnd[1]/usr/subSUBSCREEN_STEPLOOP:SAPLSPO5:0150/sub:SAPLSPO5:0150/radSPOPLI-SELFLAG[1,0]\").select\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nsession.findById(\"wnd[1]/usr/ctxtDY_PATH\").text = \"{{po_export_path}}\"\nsession.findById(\"wnd[1]/usr/ctxtDY_FILENAME\").text = \"sap_iw38_export.txt\"\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\n{{ export_done }} = \"1\"\n",
-        "script_name": "Export IW38 Grid"
+        "text": "Load IW38 Orders",
+        "script": "' Print Orders: export IW38 grid\nsession.findById(\"wnd[0]/mbar/menu[0]/menu[11]/menu[2]\").select\nsession.findById(\"wnd[1]/usr/subSUBSCREEN_STEPLOOP:SAPLSPO5:0150/sub:SAPLSPO5:0150/radSPOPLI-SELFLAG[1,0]\").select\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\nsession.findById(\"wnd[1]/usr/ctxtDY_PATH\").text = \"{{po_import_path}}\"\nsession.findById(\"wnd[1]/usr/ctxtDY_FILENAME\").text = \"{{po_import_file}}\"\nsession.findById(\"wnd[1]/tbar[0]/btn[0]\").press\n{{ export_done }} = \"1\"\n",
+        "script_name": "Load IW38 Orders"
       },
       "po_start_btn": {
-        "text": "▶ Start",
+        "text": "Print All",
         "script": "",
         "script_name": "Start Processing"
       },
@@ -156,14 +156,14 @@
         "script_name": "Pause Processing"
       },
       "po_generate_pdf_btn": {
-        "text": "Generate PDF List",
+        "text": "Merge PDFs",
         "script": "",
-        "script_name": "Generate PDF"
+        "script_name": "Merge PDFs"
       },
       "po_print_open_order_btn": {
-        "text": "Print Open Order",
+        "text": "Print This Order",
         "script": "",
-        "script_name": "Print Open Order"
+        "script_name": "Print This Order"
       },
       "po_read_open_order": {
         "text": "Read Open Order",
@@ -239,6 +239,36 @@
         "script_name": "Open in SAP",
         "text": "Open in SAP",
         "script": "' Open the created document in SAP: notification -> IW22, work order -> IW32\nsession.findById(\"wnd[0]\").maximize\nsession.findById(\"wnd[0]\").setFocus\nIf {{si_sap_kind}} = \"notification\" Then\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW22\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtRIWO00-QMNUM\").text = {{si_sap_number}}\nsession.findById(\"wnd[0]\").sendVKey 0\nElseIf {{si_sap_kind}} = \"workorder\" Then\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = {{si_sap_number}}\nsession.findById(\"wnd[0]\").sendVKey 0\nEnd If"
+      },
+      "po_read_tcode": {
+        "text": "Detect SAP Screen",
+        "script": "' Print Orders: read the active transaction\n_tcode = session.Info.Transaction\n{{ po_tcode }} = _tcode\n",
+        "script_name": "Detect SAP Screen"
+      },
+      "po_print_selected_btn": {
+        "text": "Print Selected",
+        "script": "",
+        "script_name": "Print Selected"
+      },
+      "po_stop_btn": {
+        "text": "Stop",
+        "script": "",
+        "script_name": "Stop"
+      },
+      "po_retry_failed_btn": {
+        "text": "Retry Failed",
+        "script": "",
+        "script_name": "Retry Failed"
+      },
+      "po_history_btn": {
+        "text": "History",
+        "script": "",
+        "script_name": "History"
+      },
+      "po_user_status_btn": {
+        "text": "All",
+        "script": "",
+        "script_name": "User status filter"
       }
     },
     "textinput": {
@@ -377,6 +407,10 @@
       "si_system": {
         "var_name": "si_system",
         "default_value": "PRD400"
+      },
+      "po_order_entry": {
+        "var_name": "po_order_input",
+        "default_value": ""
       }
     },
     "headers": {

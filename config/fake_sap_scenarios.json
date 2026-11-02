@@ -778,7 +778,7 @@
         "kind": "SET_PROPERTY",
         "member": "text",
         "path": "wnd[1]/usr/ctxtDY_FILENAME",
-        "value": "\"sap_iw38_export.txt\""
+        "value": "\"*\""
       },
       {
         "args": null,
@@ -907,6 +907,13 @@
         "kind": "READ_PROPERTY",
         "member": "text",
         "path": "wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/txtCAUFVD-AUFNR"
+      }
+    ],
+    "po_read_tcode": [
+      {
+        "kind": "READ_SESSION",
+        "member": "Info.Transaction",
+        "path": "_tcode"
       }
     ],
     "prh_download_attach": [
