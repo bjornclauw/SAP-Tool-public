@@ -1,4 +1,4 @@
-"""PrintHistoryPane -- searchable run history for the Process Orders window.
+"""PrintHistoryPane -- searchable run history for the Print Orders window.
 
 Only final artifacts are shown: one combined PDF per single-order print, and
 one merged PDF per batch. Runs are grouped under their start day; a filter box

@@ -25,6 +25,8 @@ DEFAULTS: dict[str, object] = {
     "always_on_top": False,
     "debug_mode": False,
     "power_user": False,
+    # Tool-window UI language: "auto" follows the Windows UI language.
+    "ui_language": "auto",
     # SAP Import setup, seeded from config/textinput on a fresh install.
     "si_pg": "WP1",
     "si_system": "PRD400",

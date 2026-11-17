@@ -1,4 +1,4 @@
-"""PrintHistoryStore -- local JSON history of Process Orders runs.
+"""PrintHistoryStore -- local JSON history of Print Orders runs.
 
 Only final artifacts are stored: one combined PDF per single-order print, and
 one merged PDF per batch/session. The intermediate work-order and photo

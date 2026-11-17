@@ -14,7 +14,7 @@ from tkinter import ttk
 import tkinterdnd2
 
 from core import config as cfg
-from core import console, user_settings
+from core import console, i18n, user_settings
 from core.com_backend import RealSapBackend
 from core.commands import sanitize_sap_number
 from core.engine import SapScriptEngine
@@ -53,7 +53,7 @@ SHORTCUT_BUTTONS = [
 HELPER_RAIL_ITEMS = [
     ("purchase_request", "PR", "Purchase Request",
      "_open_purchase_request", ui_styles.TOOL_COLORS["purchase_request"]),
-    ("print_orders", "PO", "Process Orders",
+    ("print_orders", "PO", "Print Orders",
      "_open_print_orders", ui_styles.TOOL_COLORS["print_orders"]),
     ("sap_import", "SI", "SAP Import",
      "_open_sap_import", ui_styles.TOOL_COLORS["sap_import"]),
@@ -88,6 +88,7 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         self.config_data = _get_config()
 
         settings = user_settings.load_user_settings()
+        i18n.set_language(settings.get("ui_language", i18n.AUTO_LANGUAGE))
         self.fake_sap = tk.BooleanVar(value=bool(settings.get("fake_sap", False)))
         self.always_on_top = tk.BooleanVar(value=bool(settings.get("always_on_top", False)))
         self.debug_mode = tk.BooleanVar(value=bool(settings.get("debug_mode", False)))
@@ -568,6 +569,44 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         win.configure(bg=ui_styles.COLORS["bg"])
         body = styled_frame(win)
         body.pack(fill="both", expand=True, padx=12, pady=(12, 6))
+
+        language_row = styled_frame(body)
+        language_row.pack(fill="x", pady=(0, 6))
+        styled_label(
+            language_row, i18n.t("main.settings.language"),
+            font=ui_styles.FONTS["body"], anchor="w",
+            bg=ui_styles.COLORS["bg"]).pack(side="left")
+        language_codes = [i18n.AUTO_LANGUAGE, *i18n.available_languages()]
+        language_labels = {
+            code: (i18n.t("main.settings.language_auto")
+                   if code == i18n.AUTO_LANGUAGE else i18n.language_label(code))
+            for code in language_codes
+        }
+        current_setting = str(
+            user_settings.load_user_settings().get(
+                "ui_language", i18n.AUTO_LANGUAGE))
+        if current_setting not in language_codes:
+            current_setting = i18n.AUTO_LANGUAGE
+        language_var = tk.StringVar(value=language_labels[current_setting])
+        language_box = ttk.Combobox(
+            language_row, textvariable=language_var, state="readonly",
+            values=[language_labels[code] for code in language_codes],
+            font=ui_styles.FONTS["body"], width=22)
+        language_box.pack(side="right")
+
+        def _on_language_picked(_event=None):
+            selected = language_var.get()
+            code = next(
+                (candidate for candidate, label in language_labels.items()
+                 if label == selected),
+                i18n.AUTO_LANGUAGE)
+            i18n.set_language(code)
+            self._save_user_settings({"ui_language": code})
+            self.report_status(
+                i18n.t("main.settings.language_note"), "info")
+
+        language_box.bind("<<ComboboxSelected>>", _on_language_picked)
+
         toggles = [
             ("Always on Top", self.always_on_top, self._toggle_always_on_top),
             ("Debug Mode", self.debug_mode, self._toggle_debug_mode),
@@ -1006,7 +1045,7 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             "Tools",
             [
                 MenuBarItem("Purchase Request Helper", self._open_purchase_request),
-                MenuBarItem("Process Orders", self._open_print_orders),
+                MenuBarItem("Print Orders", self._open_print_orders),
                 MenuBarItem("SAP Import", self._open_sap_import),
                 MenuBarItem("Revisions Register", self._open_revisions_register),
             ],
@@ -1030,6 +1069,7 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
                 MenuBarItem("Auto-hide", variable=self.dock.autohide,
                             command=self._toggle_autohide),
                 MenuBarItem("", separator=True),
+                MenuBarItem("Language...", command=self._open_dock_settings),
                 MenuBarItem("Check for updates…", command=self._open_update_modal),
                 MenuBarItem("", separator=True),
                 MenuBarItem("Quit", command=self._on_close),

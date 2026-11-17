@@ -15,6 +15,7 @@ from collections.abc import Callable
 from tkinter import ttk
 
 from core import config as cfg
+from core import sap_fields
 from tools.sap_export_parser import SapExportParser
 from ui.edit_modal import EditModal
 
@@ -30,6 +31,7 @@ class GridColumnManager:
         self.available_columns: list[str] = []
         self._stored_rows: list[list[str]] = []
         self._parser = SapExportParser()
+        self._fields = sap_fields.get_registry()
         self.last_warnings: list[str] = []
         self._apply_warnings: list[str] = []
         self.post_apply_callback: Callable | None = None
@@ -65,8 +67,8 @@ class GridColumnManager:
 
     @staticmethod
     def _norm(name: str) -> str:
-        """Header identity: case- and whitespace-insensitive."""
-        return " ".join(str(name).split()).casefold()
+        """Header identity: case-, accent- and punctuation-insensitive."""
+        return sap_fields.normalise_header(name)
 
     def _find_header(self, all_headers: list[str], name: str) -> str | None:
         if name in all_headers:
@@ -75,6 +77,11 @@ class GridColumnManager:
         for header in all_headers:
             if self._norm(header) == target:
                 return header
+        field = self._fields.field_for_header(name)
+        if field is not None:
+            for header in all_headers:
+                if self._fields.field_for_header(header) == field:
+                    return header
         return None
 
     # ---- population ----------------------------------------------------
@@ -200,6 +207,11 @@ class GridColumnManager:
                 live = norm_to_live.get(self._norm(candidate))
                 if live is not None:
                     return live
+                field = self._fields.canonical_name(candidate)
+                if field in self._fields.fields:
+                    for header in all_headers:
+                        if self._fields.field_for_header(header) == field:
+                            return header
             return None
 
         resolved_visible: list[str] = []
@@ -273,6 +285,33 @@ class GridColumnManager:
         if self.post_apply_callback:
             self.post_apply_callback()
 
+    def _canonical_payload(self, data: dict) -> dict:
+        """Store column identity by stable field id, not localised header.
+
+        Existing configs with Dutch/French/English labels still load because
+        reads resolve either form through the alias registry.
+        """
+        def canonical_list(names) -> list[str]:
+            result: list[str] = []
+            for name in names or []:
+                key = self._fields.canonical_name(name)
+                if key and key not in result:
+                    result.append(key)
+            return result
+
+        payload = dict(data)
+        if "visible_columns" in payload:
+            payload["visible_columns"] = canonical_list(
+                payload["visible_columns"])
+        if "column_order" in payload:
+            payload["column_order"] = canonical_list(payload["column_order"])
+        if "column_display_names" in payload:
+            payload["column_display_names"] = {
+                self._fields.canonical_name(name): label
+                for name, label in payload["column_display_names"].items()
+            }
+        return payload
+
     def _auto_size_columns(self, ordered_visible, display_names, all_headers):
         font = tkfont.Font(font=("Segoe UI", 9))
         padding = 18
@@ -309,6 +348,16 @@ class GridColumnManager:
         configured_visible = grid_cfg.get("visible_columns", [])
         configured_order = grid_cfg.get("column_order", [])
         display_names = grid_cfg.get("column_display_names", {})
+
+        if self.available_columns:
+            def live(name):
+                return self._find_header(self.available_columns, name) or name
+
+            configured_visible = [live(name) for name in configured_visible]
+            configured_order = [live(name) for name in configured_order]
+            display_names = {
+                live(name): label for name, label in display_names.items()
+            }
 
         if not configured_visible or not configured_order:
             self.treeview["columns"] = []
@@ -374,6 +423,22 @@ class GridColumnManager:
         col_order = grid_cfg.get("column_order", available_cols[:])
         display_names = grid_cfg.get("column_display_names", {})
 
+        def live_name(name):
+            if name in available_cols:
+                return name
+            key = self._fields.canonical_name(name)
+            for header in available_cols:
+                if (self._fields.canonical_name(header) == key
+                        or self._fields.field_for_header(header) == key):
+                    return header
+            return name
+
+        visible_cols = [live_name(name) for name in visible_cols]
+        col_order = [live_name(name) for name in col_order]
+        display_names = {
+            live_name(name): label for name, label in display_names.items()
+        }
+
         if not visible_cols:
             visible_cols = available_cols[:]
         if not col_order:
@@ -389,7 +454,7 @@ class GridColumnManager:
 
         def save_callback(new_data: dict):
             grid_cfg2 = cfg.get_grid_cfg(self.config_data, self.config_key)
-            grid_cfg2.update(new_data)
+            grid_cfg2.update(self._canonical_payload(new_data))
             cfg.save_config(self.config_data)
             if on_apply is not None:
                 on_apply()

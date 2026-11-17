@@ -1,5 +1,13 @@
 # SAP Work Order Tool
 
+## 2026.11.17.1 — 2026-11-17
+
+- Print Orders now reads SAP list exports in Dutch, French, English and Spanish. Columns are recognised by meaning rather than position or heading, so a different column order or a missing optional column no longer breaks the tool.
+- When no status column is available, orders are marked Unknown and Print Orders asks before processing them; unrecognised status values are no longer reported as "No Release".
+- Tool windows can follow the Windows language, with a manual language choice in Settings.
+- The window is called Print Orders again.
+- The Scripts menu in Print Orders is hidden unless Power User is enabled.
+
 ## 2026.11.02.3 — 2026-11-02
 
 - The Print Orders window is now called Process Orders, which better matches what it does.

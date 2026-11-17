@@ -15,6 +15,9 @@ Usage:
 from __future__ import annotations
 
 import os
+import re
+
+_DATE_CELL = re.compile(r"^\d{1,4}[./-]\d{1,2}[./-]\d{1,4}$")
 
 
 class SapExportParser:
@@ -35,6 +38,21 @@ class SapExportParser:
         headers, rows, _warnings = self.parse_with_warnings(filepath)
         return headers, rows
 
+    @staticmethod
+    def _decode_export(data: bytes) -> str:
+        """Read SAP exports in UTF-8 or the Windows ANSI codepage.
+
+        SAP GUI writes accented list headers as UTF-8 on some installs and as
+        Windows-1252 on others. Decoding strictly as UTF-8 first preserves
+        ``Désignation`` when possible; cp1252 is the fallback for an ANSI file.
+        """
+        for encoding in ("utf-8-sig", "cp1252", "latin-1"):
+            try:
+                return data.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+        return data.decode("utf-8", errors="replace")
+
     def parse_with_warnings(
         self, filepath: str
     ) -> tuple[list[str], list[list[str]], list[str]]:
@@ -47,25 +65,32 @@ class SapExportParser:
             raise FileNotFoundError(f"Export file not found: {filepath}")
 
         warnings: list[str] = []
-        with open(filepath, encoding="utf-8", errors="ignore") as f:
-            content = f.read()
+        with open(filepath, "rb") as f:
+            content = self._decode_export(f.read())
 
         # Do not strip the whole file: the header row may start with the
         # row-number column, and stripping would hide that leading tab.
         lines = content.splitlines()
 
-        # Find header line: tab-separated, >3 fields, not a date/marker line
+        # Find the header line. The metadata line can be very wide (a date,
+        # a title and a page number spread over many tabs), so comparing the
+        # number of split cells is not enough -- count non-empty cells and
+        # reject a leading date. Data rows come after the header; the first
+        # line that passes is therefore the header.
         header_line_idx = None
         for i, line in enumerate(lines):
-            if (
-                "\t" in line
-                and not line.strip().startswith("*")
-                and not line.strip().startswith(("20", "202"))
-            ):
-                potential_headers = line.strip().split("\t")
-                if len(potential_headers) > 3:
-                    header_line_idx = i
-                    break
+            if "\t" not in line or line.strip().startswith("*"):
+                continue
+            cells = line.split("\t")
+            nonempty = [cell for cell in cells if cell.strip()]
+            if len(nonempty) <= 3:
+                continue
+            if _DATE_CELL.match(nonempty[0].strip()):
+                continue
+            if len(nonempty) / max(len(cells), 1) < 0.2:
+                continue
+            header_line_idx = i
+            break
 
         if header_line_idx is None:
             raise ValueError("Could not find column headers in export")

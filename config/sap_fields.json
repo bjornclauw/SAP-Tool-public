@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "notes": "Canonical SAP list fields. Keys are the stable ids used by code and stored column configs. Add localised header spellings to aliases; matching ignores case, accents and punctuation.",
+  "fields": {
+    "selected": {
+      "aliases": ["Sel.", "Sél.", "Sel", "Sél", "Select", "SELKZ"]
+    },
+    "order": {
+      "aliases": [
+        "Order", "Ordre", "Auftrag", "Orden", "AUFNR",
+        "Work order", "Werkorder", "N° ordre", "No. order", "N.º de orden"
+      ]
+    },
+    "short_text": {
+      "aliases": [
+        "Omschrijving", "Korte tekst", "Description", "Désignation",
+        "Designation", "Kurtext", "Bezeichnung", "Descripción",
+        "Denominación", "Texto breve", "KTEXT", "Short text", "Desc."
+      ]
+    },
+    "system_status": {
+      "aliases": [
+        "Systeemstatus", "Systemstatus", "System status", "Statut système",
+        "Estado del sistema", "Estatus del sistema", "Status del sistema",
+        "STTXT"
+      ]
+    },
+    "user_status": {
+      "aliases": [
+        "Gebr.stat.", "Gebruikersstatus", "User status", "Statut util.",
+        "Statut utilisateur", "Benutzerstatus", "Estatus de usuario",
+        "Estatus usuario", "Status de usuario", "Status usuario", "USTAT"
+      ]
+    },
+    "status": {
+      "aliases": ["Status", "Statut", "Estado"]
+    },
+    "work_center": {
+      "aliases": [
+        "Ver.WerkPl", "PTravPrinc", "Work center", "Workplace",
+        "Arbeitsplatz", "Centro de trabajo", "VAPLZ"
+      ]
+    },
+    "planner_group": {
+      "aliases": [
+        "GrG", "Plannergroep", "Planner group", "Plangruppe",
+        "Grupo de planificación", "INGRP"
+      ]
+    },
+    "functional_location": {
+      "aliases": [
+        "Functieplaats", "Poste technique", "Functional location",
+        "Technischer Platz", "Ubicación técnica", "TPLNR"
+      ]
+    },
+    "functional_location_desc": {
+      "aliases": [
+        "Omschrijving functieplaats", "Désign.poste techn.",
+        "Functional location description",
+        "Bezeichnung Technischer Platz", "Descripción ubicación técnica"
+      ]
+    },
+    "equipment": {
+      "aliases": ["Équipemnt", "Equipment", "Equip.", "Equipo", "EQUNR"]
+    },
+    "revision": {
+      "aliases": ["Revisie", "Révision", "Revision", "Revisión", "REVNR"]
+    },
+    "priority": {
+      "aliases": [
+        "Prioriteit", "Priorité", "Priority", "Priorität", "Prioridad",
+        "PRIOK"
+      ]
+    },
+    "order_type": {
+      "aliases": [
+        "Srt", "Type", "Order type", "Auftragsart", "Tipo de orden", "AUART"
+      ]
+    },
+    "start_date": {
+      "aliases": [
+        "Inv.datum", "Déb. plnf.", "Planned start", "Gepl. start",
+        "Inicio previsto", "GSTRP"
+      ]
+    },
+    "finish_date": {
+      "aliases": [
+        "Fin plan.", "Planned finish", "Gepl. eind", "Fin previsto", "GLTRP"
+      ]
+    },
+    "created_on": {
+      "aliases": [
+        "Aangemaakt op", "Créé le", "Created on", "Erstellt am",
+        "Creado el", "ERDAT"
+      ]
+    }
+  },
+  "status_tokens": {
+    "notes": "SAP translates status abbreviations per language. Add local codes as they appear in real exports; unlisted codes become Unknown rather than No Release.",
+    "released": [
+      "REL", "FRG", "FREI", "VRIJ", "VRIJGEGEVEN", "LANC", "LIB", "LIBERADO"
+    ],
+    "not_released": [
+      "CRTD", "CTRD", "CREA", "CREADO", "ANGEL", "ANGELEGT", "NOPR", "ABGE"
+    ]
+  }
+}

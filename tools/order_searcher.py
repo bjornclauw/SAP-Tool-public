@@ -17,6 +17,7 @@ from tkinter import ttk
 from tkcalendar import DateEntry
 
 from core import config as cfg
+from core import sap_fields
 from tools.grid_column_manager import GridColumnManager as GridManager
 from ui import ui_styles
 from ui.custom_widgets import BaseToolWindow, CustomButton, CustomEntry
@@ -99,6 +100,7 @@ class OrderSearcherWindow(BaseToolWindow):
         self.geometry("1200x580")
         self.minsize(900, 480)
 
+        self._fields = sap_fields.get_registry()
         self._init_export_path()
         self._build_filters()
         self._build_status_bar()
@@ -452,14 +454,12 @@ class OrderSearcherWindow(BaseToolWindow):
         columns = list(self.tree["columns"])
         values = []
         for c in columns:
-            key = c.strip().lower()
-            if key in ("order", "aufnr"):
+            field = self._fields.field_for_header(c)
+            if field == "order":
                 values.append(order_nr)
-            elif key in ("description", "beschrijving", "korte tekst",
-                         "omschrijving", "omschr", "text"):
+            elif field == "short_text":
                 values.append(short_text)
-            elif key.replace(" ", "") in ("status", "systeemstatus",
-                                          "systemstatus", "sysstat", "sttxt"):
+            elif field in ("system_status", "user_status", "status"):
                 values.append(status)
             else:
                 values.append("")
@@ -511,6 +511,13 @@ class OrderSearcherWindow(BaseToolWindow):
             pass
         return ""
 
+    def _field_column_index(self, field: str) -> int | None:
+        """The treeview position of a stable field, independent of language."""
+        for index, column in enumerate(self.tree["columns"]):
+            if self._fields.field_for_header(column) == field:
+                return index
+        return None
+
     def _on_row_double_click(self, event):
         """Set the order number on the engine and close."""
         item = self.tree.identify_row(event.y)
@@ -520,12 +527,7 @@ class OrderSearcherWindow(BaseToolWindow):
         if not values:
             return
 
-        # Find which column holds the order number ("Order" or "AUFNR")
-        columns = list(self.tree["columns"])
-        order_idx = next(
-            (i for i, c in enumerate(columns) if c.lower() in ("order", "aufnr")),
-            None,
-        )
+        order_idx = self._field_column_index("order")
         if order_idx is not None and order_idx < len(values):
             order_number = values[order_idx].strip()
         else:
@@ -538,11 +540,9 @@ class OrderSearcherWindow(BaseToolWindow):
         self.engine.set_variable("order", order_number)
         # Pass the system status through too -- PRH shows it and flags TAFS
         # (technisch afgesloten, needs reopen). Empty when the column is hidden.
-        status_idx = next(
-            (i for i, c in enumerate(columns)
-             if c.lower().replace(" ", "") in ("systeemstatus", "systemstatus", "sysstat", "sttxt")),
-            None,
-        )
+        status_idx = self._field_column_index("system_status")
+        if status_idx is None:
+            status_idx = self._field_column_index("user_status")
         self.engine.set_variable(
             "order_system_status",
             values[status_idx].strip() if status_idx is not None and status_idx < len(values) else "",

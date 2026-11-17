@@ -4,7 +4,8 @@ Workflow:
   1. Open IW38, or open one order in IW32.
   2. "Load IW38 Orders" imports the open IW38 grid; "Process This Order"
      handles the order open in IW32 (or one typed into the Order field).
-  3. Orders without "vrijgegeven" status are flagged "No Release".
+  3. Orders whose localised status tokens are not released are flagged
+     "No Release"; unknown status values stay "Unknown".
   4. Process All / Process Selected / Retry Failed loop over released orders:
        a. Open IW32 with order
        b. Print work order as PDF via SAP GUI script
@@ -31,7 +32,7 @@ from tkinter import messagebox, ttk
 from pypdf import PdfReader, PdfWriter
 
 from core import config as cfg
-from core import user_settings
+from core import i18n, sap_fields, user_settings
 from tools.grid_column_manager import GridColumnManager as GridManager
 from tools.print_history import PrintHistoryStore
 from tools.print_history_view import PrintHistoryPane
@@ -66,12 +67,12 @@ class _UserStatusPicker(tk.Toplevel):
         top = tk.Frame(outer, bg=ui_styles.COLORS["surface"])
         top.pack(fill="x", padx=8, pady=(6, 2))
         tk.Button(
-            top, text="All statuses", command=self._select_all,
+            top, text=i18n.t("print_orders.all_statuses"), command=self._select_all,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text_secondary"],
             relief="flat", font=ui_styles.FONTS["small"], cursor="hand2",
             padx=4).pack(side="left")
         tk.Button(
-            top, text="Done", command=self._close,
+            top, text=i18n.t("print_orders.done"), command=self._close,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["primary"],
             relief="flat", font=ui_styles.FONTS["small"], cursor="hand2",
             padx=4).pack(side="right")
@@ -110,7 +111,7 @@ class _UserStatusPicker(tk.Toplevel):
             self._vars[option] = var
         if not options:
             tk.Label(
-                inner, text="(no user status values)",
+                inner, text=i18n.t("print_orders.no_user_status"),
                 bg=ui_styles.COLORS["surface"],
                 fg=ui_styles.COLORS["text_secondary"],
                 font=ui_styles.FONTS["small"], anchor="w",
@@ -172,6 +173,7 @@ class PrintOrdersWindow(BaseToolWindow):
     STATUS_DONE = "Done"
     STATUS_FAILED = "Failed"
     STATUS_NO_RELEASE = "No Release"
+    STATUS_UNKNOWN = "Unknown"
 
     STATUS_TAGS = {
         STATUS_PENDING: "po_pending",
@@ -179,20 +181,29 @@ class PrintOrdersWindow(BaseToolWindow):
         STATUS_DONE: "po_done",
         STATUS_FAILED: "po_failed",
         STATUS_NO_RELEASE: "po_no_release",
+        STATUS_UNKNOWN: "po_unknown",
+    }
+
+    STATUS_LABEL_KEYS = {
+        STATUS_PENDING: "status.pending",
+        STATUS_IN_PROGRESS: "status.in_progress",
+        STATUS_DONE: "status.done",
+        STATUS_FAILED: "status.failed",
+        STATUS_NO_RELEASE: "status.no_release",
+        STATUS_UNKNOWN: "status.unknown",
     }
 
     STEPS = ["open", "print", "attach", "spool"]
     MAX_ATTACHMENTS = 4
     RUN_LIMIT = 30
 
-    SHORT_TEXT_HEADERS = {
-        "omschrijving", "description", "korte tekst", "kurtext", "text",
-        "short text", "bezeichnung",
-    }
-
     def __init__(self, parent, engine):
         super().__init__(parent, engine, titlebar_color=ui_styles.TOOL_COLORS["print_orders"])
-        self.title("Process Orders")
+        self.title(i18n.t("print_orders.title"))
+        self._fields = sap_fields.get_registry()
+        self._column_map: sap_fields.ColumnMap | None = None
+        self._order_missing = False
+        self._load_warning = ""
         self.geometry("1060x760")
         self.minsize(720, 480)
 
@@ -238,6 +249,14 @@ class PrintOrdersWindow(BaseToolWindow):
         self._detect_after_id = self.after(300, self._detect_active_screen)
 
     def destroy(self):
+        trace = getattr(self, "_power_user_trace", None)
+        power = getattr(self, "_power_user_var", None)
+        if trace and power is not None:
+            try:
+                power.trace_remove("write", trace)
+            except tk.TclError:
+                pass
+            self._power_user_trace = None
         after_id = getattr(self, "_detect_after_id", None)
         if isinstance(after_id, str):
             try:
@@ -333,6 +352,25 @@ class PrintOrdersWindow(BaseToolWindow):
         mb.config(menu=menu)
         return mb, menu
 
+    def _find_power_user_var(self) -> tk.BooleanVar | None:
+        """The toolbar's Power User toggle, when this window has one."""
+        power = getattr(self.master, "power_user", None)
+        return power if isinstance(power, tk.BooleanVar) else None
+
+    def _sync_scripts_menu(self):
+        """Show the script editor menu only while Power User is on."""
+        if not hasattr(self, "_scripts_mb"):
+            return
+        show = bool(self._power_user_var.get()) if self._power_user_var else False
+        if show == getattr(self, "_scripts_visible", False):
+            return
+        if show:
+            self._scripts_mb.pack(
+                side="right", padx=(0, ui_styles.SPACING["tight"]))
+        else:
+            self._scripts_mb.pack_forget()
+        self._scripts_visible = show
+
     def _build_actions(self):
         bar = styled_frame(self)
         bar.pack(fill="x", padx=ui_styles.SPACING["comfortable"],
@@ -340,13 +378,13 @@ class PrintOrdersWindow(BaseToolWindow):
 
         self._load_btn = CustomButton(
             bar, "buttons", "po_export_iw38_btn",
-            text="Load IW38 Orders", command=self._run_export,
+            text=i18n.t("print_orders.load_orders"), command=self._run_export,
             bg=ui_styles.COLORS["primary"], fg="#ffffff",
         )
         self._load_btn.pack(side="left")
 
         styled_label(
-            bar, "Order:", font=ui_styles.FONTS["body"],
+            bar, i18n.t("print_orders.order"), font=ui_styles.FONTS["body"],
             bg=ui_styles.COLORS["bg"]).pack(
                 side="left", padx=(ui_styles.SPACING["normal"], 4))
         self.order_var = self.bind_entry("po_order_entry")
@@ -358,60 +396,70 @@ class PrintOrdersWindow(BaseToolWindow):
 
         self._single_btn = CustomButton(
             bar, "buttons", "po_print_open_order_btn",
-            text="Process This Order", command=self._print_open_order,
+            text=i18n.t("print_orders.process_this"), command=self._print_open_order,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
         self._single_btn.pack(side="left", padx=(ui_styles.SPACING["tight"], 0))
 
         self._print_sel_btn = CustomButton(
             bar, "buttons", "po_print_selected_btn",
-            text="Process Selected", command=self._on_print_selected_clicked,
+            text=i18n.t("print_orders.process_selected"), command=self._on_print_selected_clicked,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
         self._print_sel_btn.pack(side="left", padx=(ui_styles.SPACING["tight"], 0))
 
         self._print_all_btn = CustomButton(
             bar, "buttons", "po_start_btn",
-            text="Process All", command=self._on_print_all_clicked,
+            text=i18n.t("print_orders.process_all"), command=self._on_print_all_clicked,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
         self._print_all_btn.pack(side="left", padx=(ui_styles.SPACING["tight"], 0))
 
         self._stop_btn = CustomButton(
-            bar, "buttons", "po_stop_btn", text="Stop",
+            bar, "buttons", "po_stop_btn", text=i18n.t("print_orders.stop"),
             command=self._on_stop_clicked,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"],
             state="disabled")
         self._stop_btn.pack(side="left", padx=(ui_styles.SPACING["tight"], 0))
 
         self._pause_btn = CustomButton(
-            bar, "buttons", "po_pause_btn", text="\u23f8 Pause",
+            bar, "buttons", "po_pause_btn", text=i18n.t("print_orders.pause"),
             command=self._on_pause_clicked,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"],
             state="disabled")
         self._pause_btn.pack(side="left", padx=(ui_styles.SPACING["tight"], 0))
 
-        options_mb, options_menu = self._add_menu(bar, "Options \u25be")
+        options_mb, options_menu = self._add_menu(
+            bar, i18n.t("print_orders.options"))
         options_mb.pack(side="right")
-        scripts_mb, scripts_menu = self._add_menu(bar, "Scripts \u25be")
-        scripts_mb.pack(side="right", padx=(0, ui_styles.SPACING["tight"]))
+        self._scripts_mb, scripts_menu = self._add_menu(
+            bar, i18n.t("print_orders.scripts"))
+        self._scripts_visible = False
+        self._power_user_var = self._find_power_user_var()
+        self._power_user_trace = None
+        if self._power_user_var is not None:
+            self._power_user_trace = self._power_user_var.trace_add(
+                "write", lambda *_: self._sync_scripts_menu())
+        self._sync_scripts_menu()
 
-        for button_id, label in [
-            ("po_export_iw38_btn", "Load IW38 Orders"),
-            ("po_read_tcode", "Detect SAP Screen"),
-            ("po_read_open_order", "Read Open Order"),
-            ("po_open_order", "Open in IW32"),
-            ("po_print_pdf", "Print to Spool"),
-            ("po_export_attachments", "Read Attachments"),
-            ("po_read_doknr", "Read DOKNR"),
-            ("po_export_one_attachment", "Export One Attachment"),
-            ("po_download_image", "SP02 PDF & Cleanup"),
+        for button_id, key in [
+            ("po_export_iw38_btn", "print_orders.load_orders"),
+            ("po_read_tcode", "print_orders.detect_screen"),
+            ("po_read_open_order", "print_orders.read_open_order"),
+            ("po_open_order", "print_orders.open_iw32"),
+            ("po_print_pdf", "print_orders.print_spool"),
+            ("po_export_attachments", "print_orders.read_attachments"),
+            ("po_read_doknr", "print_orders.read_doknr"),
+            ("po_export_one_attachment", "print_orders.export_one_attachment"),
+            ("po_download_image", "print_orders.sp02_pdf_cleanup"),
         ]:
             scripts_menu.add_command(
-                label=label, command=lambda bid=button_id: self._edit_script(bid))
+                label=i18n.t(key),
+                command=lambda bid=button_id: self._edit_script(bid))
 
         options_menu.add_checkbutton(
-            label="Auto-merge after run", variable=self._auto_merge_var,
+            label=i18n.t("print_orders.auto_merge"), variable=self._auto_merge_var,
             command=self._save_po_settings)
         options_menu.add_checkbutton(
-            label="Stop on first error", variable=self._stop_on_error_var,
+            label=i18n.t("print_orders.stop_on_error"),
+            variable=self._stop_on_error_var,
             command=self._save_po_settings)
         options_menu.add_separator()
         max_menu = tk.Menu(options_menu, tearoff=0)
@@ -419,25 +467,31 @@ class PrintOrdersWindow(BaseToolWindow):
             max_menu.add_radiobutton(
                 label=str(value), variable=self._max_attach_var, value=value,
                 command=self._save_po_settings)
-        options_menu.add_cascade(label="Max attachments", menu=max_menu)
+        options_menu.add_cascade(
+            label=i18n.t("print_orders.max_attachments"), menu=max_menu)
         layout_menu = tk.Menu(options_menu, tearoff=0)
-        for value, label in (("auto", "Auto"), ("1", "1 per page"),
-                             ("2", "2 per page"), ("4", "4 per page")):
+        for value, key in (("auto", "print_orders.auto"),
+                           ("1", "print_orders.page_1"),
+                           ("2", "print_orders.page_2"),
+                           ("4", "print_orders.page_4")):
             layout_menu.add_radiobutton(
-                label=label, variable=self._pdf_layout_var, value=value,
+                label=i18n.t(key), variable=self._pdf_layout_var, value=value,
                 command=self._save_po_settings)
-        options_menu.add_cascade(label="PDF layout", menu=layout_menu)
+        options_menu.add_cascade(
+            label=i18n.t("print_orders.pdf_layout"), menu=layout_menu)
         options_menu.add_separator()
-        options_menu.add_command(label="Open output folder",
-                                 command=self._open_output_folder)
-        options_menu.add_command(label="Clear list", command=self._clear_list)
+        options_menu.add_command(
+            label=i18n.t("print_orders.open_output_folder"),
+            command=self._open_output_folder)
+        options_menu.add_command(
+            label=i18n.t("print_orders.clear_list"), command=self._clear_list)
 
     def _build_filter_bar(self):
         bar = styled_frame(self)
         bar.pack(fill="x", padx=ui_styles.SPACING["comfortable"],
                  pady=(ui_styles.SPACING["tight"], 0))
 
-        styled_label(bar, "Filter:", font=ui_styles.FONTS["body"],
+        styled_label(bar, i18n.t("print_orders.filter"), font=ui_styles.FONTS["body"],
                      bg=ui_styles.COLORS["bg"]).pack(side="left")
         self._filter_var = tk.StringVar()
         self._filter_var.trace_add("write", lambda *_: self._apply_filter())
@@ -446,14 +500,15 @@ class PrintOrdersWindow(BaseToolWindow):
             font=ui_styles.FONTS["body"])
         self._filter_entry.pack(side="left", padx=(4, 8))
 
-        styled_label(bar, "User status:", font=ui_styles.FONTS["body"],
+        styled_label(bar, i18n.t("print_orders.user_status"), font=ui_styles.FONTS["body"],
                      bg=ui_styles.COLORS["bg"]).pack(side="left")
         self._user_status_options: list[str] = []
         self._user_status_selected: set[str] = set()
         self._user_status_col_idx = -1
         self._user_status_popup: _UserStatusPicker | None = None
         self._user_status_btn = CustomButton(
-            bar, "buttons", "po_user_status_btn", text="All",
+            bar, "buttons", "po_user_status_btn",
+            text=i18n.t("print_orders.all_statuses"),
             command=self._open_user_status_picker,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
         self._user_status_btn.pack(side="left", padx=(4, 4))
@@ -469,29 +524,34 @@ class PrintOrdersWindow(BaseToolWindow):
         for status, color in (
             (self.STATUS_PENDING, ui_styles.COLORS["text"]),
             (self.STATUS_NO_RELEASE, ui_styles.COLORS["text_secondary"]),
+            (self.STATUS_UNKNOWN, ui_styles.COLORS["text_secondary"]),
             (self.STATUS_DONE, ui_styles.COLORS["success"]),
             (self.STATUS_FAILED, ui_styles.COLORS["error"]),
         ):
             label = styled_label(
-                bar, f"{status} 0", font=ui_styles.FONTS["small"],
+                bar, f"{i18n.t(self.STATUS_LABEL_KEYS[status])} 0",
+                font=ui_styles.FONTS["small"],
                 bg=ui_styles.COLORS["bg"], fg=color)
             label.pack(side="left", padx=(ui_styles.SPACING["normal"], 0))
             self._counter_labels[status] = label
 
         self._history_btn = CustomButton(
-            bar, "buttons", "po_history_btn", text="History (0)",
+            bar, "buttons", "po_history_btn",
+            text=f"{i18n.t('print_orders.history')} (0)",
             command=self._toggle_history,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
         self._history_btn.pack(side="right")
 
         self._merge_btn = CustomButton(
-            bar, "buttons", "po_generate_pdf_btn", text="Merge PDFs",
+            bar, "buttons", "po_generate_pdf_btn",
+            text=i18n.t("print_orders.merge_pdfs"),
             command=self._merge_done_orders,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
         self._merge_btn.pack(side="right", padx=(0, ui_styles.SPACING["tight"]))
 
         self._retry_btn = CustomButton(
-            bar, "buttons", "po_retry_failed_btn", text="Retry Failed",
+            bar, "buttons", "po_retry_failed_btn",
+            text=i18n.t("print_orders.retry_failed"),
             command=self._on_retry_failed_clicked,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
         self._retry_btn.pack(side="right", padx=(0, ui_styles.SPACING["tight"]))
@@ -568,7 +628,7 @@ class PrintOrdersWindow(BaseToolWindow):
             pf, "0 / 0", font=ui_styles.FONTS["body"], bg=ui_styles.COLORS["bg"])
         self._prog_label.pack(side="left", padx=(ui_styles.SPACING["tight"], 0))
         styled_label(
-            pf, "No Release = SAP status not 'vrijgegeven' (skipped)",
+            pf, i18n.t("print_orders.release_rule"),
             font=ui_styles.FONTS["small"],
             fg=ui_styles.COLORS["text_secondary"],
             bg=ui_styles.COLORS["bg"]).pack(side="right", padx=(0, 4))
@@ -583,7 +643,8 @@ class PrintOrdersWindow(BaseToolWindow):
         if not hasattr(self, "_history_btn"):
             return
         count = len(self._history.runs)
-        self._history_btn.config(text=f"History ({count})")
+        self._history_btn.config(
+            text=f"{i18n.t('print_orders.history')} ({count})")
 
     def _toggle_history(self):
         if self._history_pane is None:
@@ -648,8 +709,9 @@ class PrintOrdersWindow(BaseToolWindow):
         released = sum(
             1 for c in self._all_items if self._row_status(c) == self.STATUS_PENDING)
         if total:
-            self.report_status(
-                f"{total} orders loaded ({released} released)", "success")
+            if not self._load_warning:
+                self.report_status(
+                    f"{total} orders loaded ({released} released)", "success")
         else:
             self.report_status(
                 "IW38 returned no orders" if auto else "No orders loaded",
@@ -681,44 +743,61 @@ class PrintOrdersWindow(BaseToolWindow):
                              anchor="center")
 
         export_headers = self.grid_manager.available_columns or []
-        status_header = None
-        for h in export_headers:
-            if h.lower().replace(" ", "") in (
-                    "status", "sysstat", "userstatus", "st", "systeemstatus",
-                    "systemstatus", "objectstatus", "sttxt", "estat"):
-                status_header = h
-                break
-        if not status_header:
-            children = self.tree.get_children()
-            if children:
-                first_vals = list(self.tree.item(children[0], "values"))
-                for i, h in enumerate(current_cols):
-                    if i < len(first_vals):
-                        raw = first_vals[i].lower()
-                        if ("vrijgegeven" in raw or "vrij" in raw
-                                or " rel " in f" {raw} "
-                                or any(kw in raw for kw in (
-                                    "open", "released", "crtd", "confirmed"))):
-                            status_header = h
-                            break
-        status_idx = (
-            current_cols.index(status_header)
-            if status_header and status_header in current_cols else -1)
+        self._column_map = self._fields.resolve(export_headers)
+        self._order_missing = "order" not in self._column_map
+        status_fields = [
+            field for field in ("system_status", "user_status", "status")
+            if field in self._column_map
+        ]
+        stored_rows = self.grid_manager._stored_rows
 
         progress_col_idx = (
             len(current_cols) if "Progress" not in current_cols
             else current_cols.index("Progress"))
+        unknown_count = 0
         for item in self.tree.get_children():
             vals = list(self.tree.item(item, "values"))
-            raw = vals[status_idx].lower() if 0 <= status_idx < len(vals) else ""
-            released = "vrijgegeven" in raw or "vrij" in raw or " rel " in f" {raw} "
-            progress = self.STATUS_PENDING if released else self.STATUS_NO_RELEASE
+            row_index = self.tree.index(item)
+            if row_index < len(stored_rows):
+                raw = " ".join(
+                    self._column_map.value(field, stored_rows[row_index])
+                    for field in status_fields
+                )
+            else:
+                raw = ""
+            if not status_fields:
+                progress = self.STATUS_UNKNOWN
+            else:
+                kind = self._fields.classify_status(raw)
+                if kind == "released":
+                    progress = self.STATUS_PENDING
+                elif kind == "not_released":
+                    progress = self.STATUS_NO_RELEASE
+                else:
+                    progress = self.STATUS_UNKNOWN
+                    unknown_count += 1
             if len(vals) > progress_col_idx:
                 vals[progress_col_idx] = progress
             else:
                 vals.append(progress)
             self.tree.item(item, values=vals)
             self._apply_row_visual(item, progress)
+
+        self._load_warning = ""
+        if self._order_missing:
+            expected = ", ".join(self._fields.aliases("order")[:6])
+            available = ", ".join(export_headers) or "(none)"
+            self._load_warning = i18n.t(
+                "print_orders.order_column_missing",
+                expected=expected, available=available)
+            self.report_status(self._load_warning, "error")
+        elif not status_fields:
+            self._load_warning = i18n.t("print_orders.status_unknown_warning")
+            self.report_status(self._load_warning, "warning")
+        elif unknown_count:
+            self._load_warning = i18n.t(
+                "print_orders.status_unrecognised", count=unknown_count)
+            self.report_status(self._load_warning, "warning")
 
         # Column config re-applies rebuild the rows (new item ids), so keep the
         # filter/action state pointing at the live items.
@@ -747,11 +826,11 @@ class PrintOrdersWindow(BaseToolWindow):
             return
         selected = self._user_status_selected
         if not selected:
-            text = "All"
+            text = i18n.t("print_orders.all_statuses")
         elif len(selected) == 1:
             text = next(iter(selected))
         else:
-            text = f"{len(selected)} selected"
+            text = f"{len(selected)} {i18n.t('print_orders.done').lower()}"
         self._user_status_btn.config(text=text)
 
     def _open_user_status_picker(self):
@@ -787,19 +866,15 @@ class PrintOrdersWindow(BaseToolWindow):
             self._apply_filter()
 
     def _user_status_column_index(self) -> int:
-        cols = [(" ".join(str(c).split()).casefold()) for c in self.tree["columns"]]
-        for name in (
-            "gebr.stat.", "gebr.stat", "gebrstat", "gebruikersstatus",
-            "userstatus", "user status", "ustatus",
-        ):
-            if name in cols:
-                return cols.index(name)
-        # No dedicated user-status column: prefer the combined Status column
-        # over the system-status column, since it carries user-status tokens.
-        for name in ("status", "systeemstatus", "systemstatus", "sttxt",
-                     "objectstatus"):
-            if name in cols:
-                return cols.index(name)
+        cols = list(self.tree["columns"])
+        if self._column_map is None:
+            return -1
+        # Prefer the dedicated user-status column; fall back to a combined
+        # status column before the system status.
+        for field in ("user_status", "status", "system_status"):
+            header = self._column_map.header(field)
+            if header in cols:
+                return cols.index(header)
         return -1
 
     def _row_user_status(self, item: str) -> set[str]:
@@ -825,6 +900,9 @@ class PrintOrdersWindow(BaseToolWindow):
         options = sorted(tokens, key=str.casefold)
         self._user_status_options = options
         self._user_status_selected = self._user_status_selected & set(options)
+        if hasattr(self, "_user_status_btn") and self._user_status_btn is not None:
+            self._user_status_btn.config(
+                state="normal" if self._user_status_col_idx >= 0 else "disabled")
         self._update_user_status_button()
 
     def _apply_filter(self):
@@ -860,6 +938,7 @@ class PrintOrdersWindow(BaseToolWindow):
         counts = {
             self.STATUS_PENDING: 0,
             self.STATUS_NO_RELEASE: 0,
+            self.STATUS_UNKNOWN: 0,
             self.STATUS_DONE: 0,
             self.STATUS_FAILED: 0,
         }
@@ -868,7 +947,8 @@ class PrintOrdersWindow(BaseToolWindow):
             if status in counts:
                 counts[status] += 1
         for status, label in self._counter_labels.items():
-            label.config(text=f"{status} {counts[status]}")
+            label.config(
+                text=f"{i18n.t(self.STATUS_LABEL_KEYS[status])} {counts[status]}")
 
     def _update_empty_state(self):
         if not hasattr(self, "_empty_label"):
@@ -877,14 +957,14 @@ class PrintOrdersWindow(BaseToolWindow):
             if self.tree.get_children():
                 self._empty_label.place_forget()
             else:
-                self._empty_label.config(text="No rows match the current filter.")
+                self._empty_label.config(
+                    text=i18n.t("print_orders.no_rows_match"))
                 self._empty_label.place(relx=0.5, rely=0.45, anchor="center")
             return
         if self._loading:
-            text = "Loading IW38 orders..."
+            text = i18n.t("print_orders.loading")
         else:
-            text = ("Open IW38 and click Load IW38 Orders, or open an order in\n"
-                    "IW32 (or type its number above) and click Process This Order.")
+            text = i18n.t("print_orders.empty_open_iw38")
         self._empty_label.config(text=text)
         self._empty_label.place(relx=0.5, rely=0.45, anchor="center")
 
@@ -896,8 +976,13 @@ class PrintOrdersWindow(BaseToolWindow):
                           fg=ui_styles.COLORS["text"])
 
     def _visible_pending(self) -> list[str]:
-        return [c for c in self.tree.get_children()
-                if self._row_status(c) in (self.STATUS_PENDING, self.STATUS_FAILED)]
+        if self._order_missing:
+            return []
+        return [
+            c for c in self.tree.get_children()
+            if self._row_status(c) in (
+                self.STATUS_PENDING, self.STATUS_FAILED, self.STATUS_UNKNOWN)
+        ]
 
     def _refresh_action_state(self):
         if not hasattr(self, "_load_btn"):
@@ -907,8 +992,9 @@ class PrintOrdersWindow(BaseToolWindow):
         visible_pending = self._visible_pending() if has_rows else []
         selected_pending = [
             c for c in self.tree.selection()
-            if self._row_status(c) in (self.STATUS_PENDING, self.STATUS_FAILED)
-        ]
+            if self._row_status(c) in (
+                self.STATUS_PENDING, self.STATUS_FAILED, self.STATUS_UNKNOWN)
+        ] if not self._order_missing else []
         any_failed = any(
             self._row_status(c) == self.STATUS_FAILED for c in self._all_items)
         merge_sources = self._merge_sources()
@@ -1052,6 +1138,15 @@ class PrintOrdersWindow(BaseToolWindow):
         if not items:
             return self.report_status("No pending orders in the current view",
                                       "warning")
+        unknown = sum(
+            1 for item in items
+            if self._row_status(item) == self.STATUS_UNKNOWN)
+        if unknown and not messagebox.askyesno(
+            i18n.t("print_orders.title"),
+            i18n.t("print_orders.process_unknown_confirm", count=unknown),
+            parent=self,
+        ):
+            return
         self._overwrite_single = None
         self._begin_run(
             [(item, self._order_num(item), self._short_text_for(item))
@@ -1060,7 +1155,8 @@ class PrintOrdersWindow(BaseToolWindow):
     def _on_print_selected_clicked(self):
         items = [
             c for c in self.tree.selection()
-            if self._row_status(c) in (self.STATUS_PENDING, self.STATUS_FAILED)
+            if self._row_status(c) in (
+                self.STATUS_PENDING, self.STATUS_FAILED, self.STATUS_UNKNOWN)
         ]
         if not items:
             return self.report_status("Select one or more pending orders first",
@@ -1112,7 +1208,7 @@ class PrintOrdersWindow(BaseToolWindow):
         self._prog["maximum"] = self._total
         self._prog["value"] = 0
         self._prog_label.config(text=f"0 / {self._total}")
-        self._pause_btn.config(text="\u23f8 Pause")
+        self._pause_btn.config(text=i18n.t("print_orders.pause"))
         self._refresh_action_state()
         self.report_status(f"Processing {self._total} order(s)...", "info")
         self._process_next()
@@ -1725,16 +1821,31 @@ class PrintOrdersWindow(BaseToolWindow):
             self._open_path(self._output_root)
 
     # ── row helpers ─────────────────────────────────────────────────────────
+    def _stored_row(self, item: str) -> list[str] | None:
+        """The export row behind a tree item, even when a column is hidden."""
+        rows = getattr(self.grid_manager, "_stored_rows", [])
+        try:
+            index = self.tree.index(item)
+        except tk.TclError:
+            return None
+        if 0 <= index < len(rows):
+            return rows[index]
+        return None
+
     def _short_text_for(self, item: str | None) -> str:
-        if item is None:
+        if item is None or self._column_map is None:
             return ""
+        row = self._stored_row(item)
+        if row is not None:
+            return self._column_map.value("short_text", row)
         values = list(self.tree.item(item, "values"))
         # Values follow the treeview's display order, not the export order.
         columns = list(self.tree["columns"])
-        for i, header in enumerate(columns):
-            norm = " ".join(str(header).split()).casefold()
-            if norm in self.SHORT_TEXT_HEADERS and i < len(values):
-                return str(values[i]).strip()
+        header = self._column_map.header("short_text")
+        if header in columns:
+            index = columns.index(header)
+            if index < len(values):
+                return str(values[index]).strip()
         return ""
 
     def _item_for_order(self, order: str) -> str | None:
@@ -1746,16 +1857,16 @@ class PrintOrdersWindow(BaseToolWindow):
     def _add_order_row(self, order: str, short_text: str) -> str | None:
         """Give a typed/opened order a DONE-able row when a list is loaded."""
         cols = list(self.tree["columns"])
-        if not cols:
+        if not cols or self._order_missing or self._column_map is None:
             return None
         values = [""] * len(cols)
         order_idx = self._order_col_idx()
-        if 0 <= order_idx < len(values):
-            values[order_idx] = order
-        for i, col in enumerate(cols):
-            norm = " ".join(str(col).split()).casefold()
-            if norm in self.SHORT_TEXT_HEADERS:
-                values[i] = short_text
+        if order_idx < 0:
+            return None
+        values[order_idx] = order
+        text_header = self._column_map.header("short_text")
+        if text_header in cols:
+            values[cols.index(text_header)] = short_text
         if "Progress" in cols:
             values[cols.index("Progress")] = self.STATUS_PENDING
         item = self.tree.insert("", "end", values=values)
@@ -1772,17 +1883,26 @@ class PrintOrdersWindow(BaseToolWindow):
         return ""
 
     def _order_col_idx(self) -> int:
-        """Find the order-number column index in the treeview."""
+        """The order-number column's position in this treeview, or -1.
+
+        Resolved from the stable ``order`` field, never from a header list,
+        so a localised or reordered export still works.
+        """
         cols = list(self.tree["columns"])
-        for i, c in enumerate(cols):
-            if c.lower() in ("order", "aufnr", "work order", "wo"):
-                return i
-        return 0
+        if self._column_map is None:
+            return -1
+        header = self._column_map.header("order")
+        if header in cols:
+            return cols.index(header)
+        return -1
 
     def _order_num(self, item: str) -> str:
+        row = self._stored_row(item)
+        if row is not None and self._column_map is not None:
+            return self._column_map.value("order", row)
         v = self.tree.item(item, "values")
         idx = self._order_col_idx()
-        return str(v[idx]).strip() if v and idx < len(v) else ""
+        return str(v[idx]).strip() if v and 0 <= idx < len(v) else ""
 
     def _row_status(self, item: str) -> str:
         v = self.tree.item(item, "values")
@@ -1818,12 +1938,12 @@ class PrintOrdersWindow(BaseToolWindow):
             return
         if self._paused:
             self._paused = False
-            self._pause_btn.config(text="\u23f8 Pause")
+            self._pause_btn.config(text=i18n.t("print_orders.pause"))
             self.report_status("Resumed", "info")
             self._process_next()
         else:
             self._paused = True
-            self._pause_btn.config(text="\u25b6 Resume")
+            self._pause_btn.config(text=i18n.t("print_orders.resume"))
             self.report_status("Paused", "warning")
 
     # ── row actions ─────────────────────────────────────────────────────────
@@ -1860,31 +1980,35 @@ class PrintOrdersWindow(BaseToolWindow):
             self.tree.selection_set(iid)
         menu = tk.Menu(self.tree, tearoff=0)
         if order:
-            menu.add_command(label="Open in IW32",
-                             command=lambda: self._open_order_in_iw32(order))
             menu.add_command(
-                label="Process This Order",
+                label=i18n.t("print_orders.open_iw32"),
+                command=lambda: self._open_order_in_iw32(order))
+            menu.add_command(
+                label=i18n.t("print_orders.process_this"),
                 command=lambda o=order: self._print_single(o))
             menu.add_command(
-                label="Copy Order Number",
+                label=i18n.t("print_orders.copy_order"),
                 command=lambda o=order: self._copy_text(o))
             pdf = self._pdf_for_order(order)
             if pdf:
-                menu.add_command(label="Open PDF",
-                                 command=lambda p=pdf: self._open_path(p))
                 menu.add_command(
-                    label="Open Containing Folder",
+                    label=i18n.t("print_orders.open_pdf"),
+                    command=lambda p=pdf: self._open_path(p))
+                menu.add_command(
+                    label=i18n.t("print_orders.open_folder"),
                     command=lambda p=pdf: self._open_path(os.path.dirname(p)))
             error = self._row_errors.get(order)
             if error:
                 menu.add_command(
-                    label="Show Error",
+                    label=i18n.t("print_orders.show_error"),
                     command=lambda e=error: messagebox.showerror(
                         f"Order {order}", e, parent=self))
             menu.add_separator()
-        menu.add_command(label="Configure Columns...",
-                         command=self.grid_manager.configure)
-        menu.add_command(label="Clear List", command=self._clear_list)
+        menu.add_command(
+            label=i18n.t("print_orders.configure_columns"),
+            command=self.grid_manager.configure)
+        menu.add_command(
+            label=i18n.t("print_orders.clear_list"), command=self._clear_list)
         menu.post(event.x_root, event.y_root)
 
     def _copy_text(self, text: str):
@@ -1920,8 +2044,8 @@ class PrintOrdersWindow(BaseToolWindow):
     def _on_close(self):
         if self._processing:
             keep_going = messagebox.askyesno(
-                "Process Orders",
-                "Processing is still running.\n\nStop and close the window?",
+                i18n.t("print_orders.close_running_title"),
+                i18n.t("print_orders.close_running_body"),
                 parent=self)
             if not keep_going:
                 return
