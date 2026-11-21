@@ -244,9 +244,11 @@ class DockManager:
 
         Windows drops the attribute across withdraw/deiconify cycles and when
         another window focuses, so every transition (and a slow watch) calls
-        this instead of relying on the one-off set at creation.
+        this instead of relying on the one-off set at creation. An open
+        combobox popdown is left alone: changing z-order under it can close
+        the dropdown while the user is choosing.
         """
-        if not self.dock_enabled.get():
+        if not self.dock_enabled.get() or self._popup_grab_active():
             return
         peek = self._peek
         # Windows can snap an overrideredirect Toplevel back to +0+0 when
@@ -641,12 +643,26 @@ class DockManager:
             pass
         return False
 
+    def _popup_grab_active(self) -> bool:
+        """True while a combobox/entry popdown owns the Tk grab.
+
+        The popdown is a native Toplevel outside the root's widget tree, so
+        ``grab_current()`` cannot resolve it; the raw Tk name still contains
+        "popdown". Auto-hiding the bar would close the open dropdown under
+        the pointer.
+        """
+        try:
+            name = str(self.root.tk.call("grab", "current"))
+        except Exception:
+            return False
+        return "popdown" in name.lower()
+
     def _on_leave(self, _event=None):
         if not (self.dock_enabled.get() and self.autohide.get()):
             return
         if self._is_hidden():
             return
-        if self._owned_dialog_open():
+        if self._owned_dialog_open() or self._popup_grab_active():
             return
         self._cancel_pending_hide()
         try:
@@ -721,7 +737,7 @@ class DockManager:
             return
         if self._is_hidden():
             return
-        if self._owned_dialog_open():
+        if self._owned_dialog_open() or self._popup_grab_active():
             return
         try:
             px, py = self.root.winfo_pointerx(), self.root.winfo_pointery()

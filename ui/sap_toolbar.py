@@ -327,6 +327,12 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
     def _refresh_rev_suggestions(self, combo):
         """Reload the current week's register into the Revisie dropdown."""
         try:
+            popdown = combo.tk.call("ttk::combobox::PopdownWindow", str(combo))
+            if combo.tk.call("winfo", "ismapped", popdown):
+                return  # never reconfigure an open dropdown under the pointer
+        except Exception:
+            pass
+        try:
             from tools.sap_import.revisions import get_revisions
             combo.configure(values=get_revisions())
         except Exception:

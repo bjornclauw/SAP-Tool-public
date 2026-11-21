@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.21.2 — 2026-11-21
+
+- The docked toolbar no longer closes the revision dropdown while you choose a value.
+
 ## 2026.11.21.1 — 2026-11-21
 
 - The update window shows what an update contains and can restore the version you updated from.
