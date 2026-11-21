@@ -16,14 +16,17 @@ Workflow:
      a batch produces one merged PDF. History lives in data/print_history.json.
 
 SAP scripts are short operations chained via engine polling.
-Processing stays in the main thread using after() scheduling.
+The batch loop and UI stay on the main thread; image/PDF composition runs on a
+worker so a large attachment cannot freeze the window.
 """
 
 from __future__ import annotations
 
 import os
+import queue
 import re
 import shutil
+import threading
 import tkinter as tk
 from collections.abc import Callable
 from datetime import datetime
@@ -39,7 +42,7 @@ from tools.print_history_view import PrintHistoryPane
 from ui import ui_styles
 from ui.custom_widgets import BaseToolWindow, CustomButton
 from ui.edit_modal import EditModal
-from ui.ui_styles import styled_frame, styled_label
+from ui.ui_styles import card_frame, styled_frame, styled_label
 
 
 class _UserStatusPicker(tk.Toplevel):
@@ -232,13 +235,18 @@ class PrintOrdersWindow(BaseToolWindow):
         self._batch_run_id = ""
         self._overwrite_single: dict | None = None
         self._merged_file: str | None = None
+        self._merged_signature: tuple = ()
         self._merged_link: tk.Label | None = None
         self._history_pane: PrintHistoryPane | None = None
         self._history_visible = False
+        self._mode = "list"
 
         self._build_actions()
+        self._list_area = styled_frame(self)
+        self._list_area.pack(fill="both", expand=True)
         self._build_filter_bar()
         self._build_status_bar()
+        self._build_single_info()
         self._build_treeview()
         self._build_progress_bar()
         self._cache_scripts()
@@ -293,8 +301,6 @@ class PrintOrdersWindow(BaseToolWindow):
 
     def _load_po_settings(self):
         data = user_settings.load_user_settings()
-        self._auto_merge_var = tk.BooleanVar(
-            value=bool(data.get("po_auto_merge", True)))
         self._stop_on_error_var = tk.BooleanVar(
             value=bool(data.get("po_stop_on_error", False)))
         try:
@@ -308,7 +314,6 @@ class PrintOrdersWindow(BaseToolWindow):
 
     def _save_po_settings(self):
         user_settings.update_user_settings({
-            "po_auto_merge": bool(self._auto_merge_var.get()),
             "po_stop_on_error": bool(self._stop_on_error_var.get()),
             "po_max_attachments": str(self._max_attach_var.get()),
             "po_pdf_layout": self._pdf_layout_var.get(),
@@ -375,6 +380,8 @@ class PrintOrdersWindow(BaseToolWindow):
         bar = styled_frame(self)
         bar.pack(fill="x", padx=ui_styles.SPACING["comfortable"],
                  pady=(ui_styles.SPACING["comfortable"], 0))
+        self._actions_bar = bar
+        self.order_var = tk.StringVar()
 
         self._load_btn = CustomButton(
             bar, "buttons", "po_export_iw38_btn",
@@ -383,29 +390,16 @@ class PrintOrdersWindow(BaseToolWindow):
         )
         self._load_btn.pack(side="left")
 
-        styled_label(
-            bar, i18n.t("print_orders.order"), font=ui_styles.FONTS["body"],
-            bg=ui_styles.COLORS["bg"]).pack(
-                side="left", padx=(ui_styles.SPACING["normal"], 4))
-        self.order_var = self.bind_entry("po_order_entry")
-        self._order_entry = self.CustomEntry(
-            bar, "textinput", "po_order_entry",
-            textvariable=self.order_var, width=12)
-        self._order_entry.pack(side="left")
-        self._order_entry.bind("<Return>", lambda e: self._print_open_order())
-
         self._single_btn = CustomButton(
             bar, "buttons", "po_print_open_order_btn",
             text=i18n.t("print_orders.process_this"), command=self._print_open_order,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
-        self._single_btn.pack(side="left", padx=(ui_styles.SPACING["tight"], 0))
-
+        # Shown only in single-order (IW32) mode; see _refresh_action_state.
         self._print_sel_btn = CustomButton(
             bar, "buttons", "po_print_selected_btn",
             text=i18n.t("print_orders.process_selected"), command=self._on_print_selected_clicked,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
-        self._print_sel_btn.pack(side="left", padx=(ui_styles.SPACING["tight"], 0))
-
+        # Shown only while rows are selected; see _refresh_action_state.
         self._print_all_btn = CustomButton(
             bar, "buttons", "po_start_btn",
             text=i18n.t("print_orders.process_all"), command=self._on_print_all_clicked,
@@ -417,14 +411,14 @@ class PrintOrdersWindow(BaseToolWindow):
             command=self._on_stop_clicked,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"],
             state="disabled")
-        self._stop_btn.pack(side="left", padx=(ui_styles.SPACING["tight"], 0))
-
         self._pause_btn = CustomButton(
             bar, "buttons", "po_pause_btn", text=i18n.t("print_orders.pause"),
             command=self._on_pause_clicked,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"],
             state="disabled")
-        self._pause_btn.pack(side="left", padx=(ui_styles.SPACING["tight"], 0))
+        # Anchor for _set_left: re-packed left buttons land before this.
+        self._actions_end = tk.Frame(bar, width=0, height=0)
+        self._actions_end.pack(side="left")
 
         options_mb, options_menu = self._add_menu(
             bar, i18n.t("print_orders.options"))
@@ -438,6 +432,13 @@ class PrintOrdersWindow(BaseToolWindow):
             self._power_user_trace = self._power_user_var.trace_add(
                 "write", lambda *_: self._sync_scripts_menu())
         self._sync_scripts_menu()
+        self._history_btn = CustomButton(
+            bar, "buttons", "po_history_btn",
+            text=f"{i18n.t('print_orders.history')} (0)",
+            command=self._toggle_history,
+            bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
+        self._history_btn.pack(side="right",
+                               padx=(0, ui_styles.SPACING["tight"]))
 
         for button_id, key in [
             ("po_export_iw38_btn", "print_orders.load_orders"),
@@ -454,9 +455,6 @@ class PrintOrdersWindow(BaseToolWindow):
                 label=i18n.t(key),
                 command=lambda bid=button_id: self._edit_script(bid))
 
-        options_menu.add_checkbutton(
-            label=i18n.t("print_orders.auto_merge"), variable=self._auto_merge_var,
-            command=self._save_po_settings)
         options_menu.add_checkbutton(
             label=i18n.t("print_orders.stop_on_error"),
             variable=self._stop_on_error_var,
@@ -487,9 +485,10 @@ class PrintOrdersWindow(BaseToolWindow):
             label=i18n.t("print_orders.clear_list"), command=self._clear_list)
 
     def _build_filter_bar(self):
-        bar = styled_frame(self)
+        bar = styled_frame(self._list_area)
         bar.pack(fill="x", padx=ui_styles.SPACING["comfortable"],
                  pady=(ui_styles.SPACING["tight"], 0))
+        self._filter_bar = bar
 
         styled_label(bar, i18n.t("print_orders.filter"), font=ui_styles.FONTS["body"],
                      bg=ui_styles.COLORS["bg"]).pack(side="left")
@@ -535,35 +534,87 @@ class PrintOrdersWindow(BaseToolWindow):
             label.pack(side="left", padx=(ui_styles.SPACING["normal"], 0))
             self._counter_labels[status] = label
 
-        self._history_btn = CustomButton(
-            bar, "buttons", "po_history_btn",
-            text=f"{i18n.t('print_orders.history')} (0)",
-            command=self._toggle_history,
-            bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
-        self._history_btn.pack(side="right")
-
-        self._merge_btn = CustomButton(
-            bar, "buttons", "po_generate_pdf_btn",
-            text=i18n.t("print_orders.merge_pdfs"),
-            command=self._merge_done_orders,
-            bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
-        self._merge_btn.pack(side="right", padx=(0, ui_styles.SPACING["tight"]))
-
+        tools = styled_frame(bar)
+        tools.pack(side="right", padx=(0, ui_styles.SPACING["tight"]))
         self._retry_btn = CustomButton(
-            bar, "buttons", "po_retry_failed_btn",
+            tools, "buttons", "po_retry_failed_btn",
             text=i18n.t("print_orders.retry_failed"),
             command=self._on_retry_failed_clicked,
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
-        self._retry_btn.pack(side="right", padx=(0, ui_styles.SPACING["tight"]))
-
+        self._retry_btn.pack(side="left")
+        self._merge_btn = CustomButton(
+            tools, "buttons", "po_generate_pdf_btn",
+            text=i18n.t("print_orders.merge_pdfs"),
+            command=self._merge_done_orders,
+            bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"])
+        self._merge_btn.pack(side="left", padx=(ui_styles.SPACING["tight"], 0))
         self._merged_link = tk.Label(
-            bar, text="", font=ui_styles.FONTS["small"],
+            tools, text="", font=ui_styles.FONTS["small"],
             fg=ui_styles.COLORS["primary"], bg=ui_styles.COLORS["bg"],
             cursor="hand2")
-        self._merged_link.pack(side="right", padx=(0, ui_styles.SPACING["tight"]))
+        self._merged_link.pack(side="left",
+                               padx=(ui_styles.SPACING["tight"], 0))
         self._merged_link.bind("<Button-1>", lambda e: self._open_merged())
 
         self._refresh_history_btn()
+
+    def _build_single_info(self):
+        """The IW32 single-order card (shown instead of the list)."""
+        frame = styled_frame(self)
+        self._single_info_frame = frame
+        card = card_frame(frame)
+        card.pack(fill="x", padx=ui_styles.SPACING["comfortable"],
+                  pady=(ui_styles.SPACING["normal"], 0))
+
+        title = styled_frame(card, bg=ui_styles.COLORS["surface"])
+        title.pack(fill="x", padx=12, pady=(10, 0))
+        styled_label(
+            title, "IW32", font=ui_styles.FONTS["small"],
+            fg=ui_styles.COLORS["text_secondary"],
+            bg=ui_styles.COLORS["surface"]).pack(side="left", padx=(0, 9))
+        self._iw_order_var = self.bind_var("po_iw_order", tk.StringVar())
+        self._iw_text_var = self.bind_var("po_iw_text", tk.StringVar())
+        self._iw_status_var = self.bind_var("po_iw_status", tk.StringVar())
+        self._iw_start_var = self.bind_var("po_iw_start", tk.StringVar())
+        self._iw_workplace_var = self.bind_var("po_iw_workplace", tk.StringVar())
+
+        tk.Label(
+            title, textvariable=self._iw_order_var,
+            font=ui_styles.FONTS["title"], bg=ui_styles.COLORS["surface"],
+            fg=ui_styles.COLORS["text"], anchor="w",
+        ).pack(side="left")
+        tk.Label(
+            title, textvariable=self._iw_text_var,
+            font=ui_styles.FONTS["body"], bg=ui_styles.COLORS["surface"],
+            fg=ui_styles.COLORS["text_secondary"], anchor="w",
+        ).pack(side="left", padx=(10, 0))
+
+        grid = styled_frame(card, bg=ui_styles.COLORS["surface"])
+        grid.pack(fill="x", padx=12, pady=(10, 0))
+        fields = [
+            ("print_orders.iw32_status", self._iw_status_var),
+            ("print_orders.iw32_start", self._iw_start_var),
+            ("print_orders.iw32_workplace", self._iw_workplace_var),
+        ]
+        for column, (key, var) in enumerate(fields):
+            cell = styled_frame(grid, bg=ui_styles.COLORS["surface"])
+            cell.grid(row=0, column=column, sticky="w", padx=(0, 26))
+            styled_label(
+                cell, i18n.t(key), font=ui_styles.FONTS["small"],
+                fg=ui_styles.COLORS["text_secondary"],
+                bg=ui_styles.COLORS["surface"]).pack(anchor="w")
+            tk.Label(
+                cell, textvariable=var, font=ui_styles.FONTS["header"],
+                bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"],
+                anchor="w",
+            ).pack(anchor="w")
+
+        styled_label(
+            card, i18n.t("print_orders.iw32_hint"),
+            font=ui_styles.FONTS["small"],
+            fg=ui_styles.COLORS["text_secondary"],
+            bg=ui_styles.COLORS["surface"], justify="left",
+        ).pack(anchor="w", padx=12, pady=(12, 10))
 
     def _build_treeview(self):
         style = ttk.Style()
@@ -576,7 +627,7 @@ class PrintOrdersWindow(BaseToolWindow):
         for tag_name in self.STATUS_TAGS.values():
             style.configure(tag_name, foreground=ui_styles.COLORS["text"])
 
-        tf = styled_frame(self)
+        tf = styled_frame(self._list_area)
         tf.pack(fill="both", expand=True, padx=ui_styles.SPACING["comfortable"],
                 pady=(ui_styles.SPACING["tight"], 0))
         self._grid_frame = tf
@@ -620,8 +671,8 @@ class PrintOrdersWindow(BaseToolWindow):
 
     def _build_progress_bar(self):
         pf = styled_frame(self)
-        pf.pack(fill="x", padx=ui_styles.SPACING["comfortable"],
-                pady=(ui_styles.SPACING["tight"], 0))
+        # Packed only while a run is active; see _refresh_action_state.
+        self._progress_frame = pf
         self._prog = ttk.Progressbar(pf, orient="horizontal", mode="determinate")
         self._prog.pack(fill="x", expand=True, side="left")
         self._prog_label = styled_label(
@@ -953,6 +1004,9 @@ class PrintOrdersWindow(BaseToolWindow):
     def _update_empty_state(self):
         if not hasattr(self, "_empty_label"):
             return
+        if self._mode == "single":
+            self._empty_label.place_forget()
+            return
         if self._all_items:
             if self.tree.get_children():
                 self._empty_label.place_forget()
@@ -975,6 +1029,33 @@ class PrintOrdersWindow(BaseToolWindow):
             button.config(bg=ui_styles.COLORS["surface"],
                           fg=ui_styles.COLORS["text"])
 
+    def _set_left(self, button, visible: bool, padx=0):
+        """Show/hide a left-aligned action without losing its position."""
+        try:
+            managed = bool(button.winfo_manager())
+            if visible and not managed:
+                button.pack(side="left", padx=padx, before=self._actions_end)
+            elif not visible and managed:
+                button.pack_forget()
+        except tk.TclError:
+            pass
+
+    def _set_result_tool(self, button, visible: bool, before):
+        """Show/hide a result action inside the right-hand tools group."""
+        try:
+            managed = bool(button.winfo_manager())
+            if visible and not managed:
+                button.pack(side="left",
+                            padx=(ui_styles.SPACING["tight"], 0), before=before)
+            elif not visible and managed:
+                button.pack_forget()
+        except tk.TclError:
+            pass
+
+    @staticmethod
+    def _merge_signature(sources) -> tuple:
+        return tuple((str(order), str(path)) for order, path in sources)
+
     def _visible_pending(self) -> list[str]:
         if self._order_missing:
             return []
@@ -988,16 +1069,44 @@ class PrintOrdersWindow(BaseToolWindow):
         if not hasattr(self, "_load_btn"):
             return
         processing = self._processing
+        single = self._mode == "single"
         has_rows = bool(self._all_items)
         visible_pending = self._visible_pending() if has_rows else []
+        selected_items = self.tree.selection()
         selected_pending = [
-            c for c in self.tree.selection()
+            c for c in selected_items
             if self._row_status(c) in (
                 self.STATUS_PENDING, self.STATUS_FAILED, self.STATUS_UNKNOWN)
         ] if not self._order_missing else []
         any_failed = any(
             self._row_status(c) == self.STATUS_FAILED for c in self._all_items)
         merge_sources = self._merge_sources()
+        merge_pending = (
+            bool(merge_sources)
+            and self._merge_signature(merge_sources) != self._merged_signature
+        )
+
+        self._set_left(self._load_btn, not single)
+        self._set_left(self._single_btn, single,
+                       padx=(ui_styles.SPACING["tight"], 0))
+        self._set_left(self._print_all_btn, not single,
+                       padx=(ui_styles.SPACING["tight"], 0))
+        self._set_left(
+            self._print_sel_btn,
+            not single and bool(selected_items) and not processing,
+            padx=(ui_styles.SPACING["tight"], 0))
+        self._set_left(self._stop_btn, processing,
+                       padx=(ui_styles.SPACING["tight"], 0))
+        self._set_left(self._pause_btn, processing,
+                       padx=(ui_styles.SPACING["tight"], 0))
+        self._set_result_tool(
+            self._merge_btn, merge_pending and not processing,
+            before=self._merged_link)
+        retry_before = (self._merge_btn if self._merge_btn.winfo_manager()
+                        else self._merged_link)
+        self._set_result_tool(
+            self._retry_btn, any_failed and not processing,
+            before=retry_before)
 
         self._load_btn.config(
             state="disabled" if processing or self._loading else "normal")
@@ -1013,23 +1122,40 @@ class PrintOrdersWindow(BaseToolWindow):
         self._merge_btn.config(
             state="normal" if merge_sources and not processing else "disabled")
 
-        if not processing and not has_rows:
-            self._set_primary(self._load_btn, True)
-            self._set_primary(self._print_all_btn, False)
-            self._set_primary(self._single_btn, False)
-        elif not processing and visible_pending:
-            self._set_primary(self._load_btn, False)
-            self._set_primary(self._print_all_btn, True)
-            self._set_primary(self._single_btn, False)
-        elif not processing:
-            self._set_primary(self._load_btn, False)
-            self._set_primary(self._print_all_btn, False)
-            self._set_primary(self._single_btn, True)
+        if processing:
+            if not self._progress_frame.winfo_manager():
+                self._progress_frame.pack(
+                    fill="x", padx=ui_styles.SPACING["comfortable"],
+                    pady=(ui_styles.SPACING["tight"], 0))
+        elif self._progress_frame.winfo_manager():
+            self._progress_frame.pack_forget()
+
+        self._set_primary(
+            self._load_btn, not single and not processing and not has_rows)
+        self._set_primary(
+            self._print_all_btn,
+            not single and not processing and bool(visible_pending))
+        self._set_primary(self._single_btn, single and not processing)
 
         self._update_counters()
         self._update_empty_state()
 
     # ── screen detection / single order ─────────────────────────────────────
+    def _set_mode(self, mode: str):
+        """Switch between the IW38 list and the IW32 single-order card."""
+        self._mode = "single" if mode == "single" else "list"
+        if self._mode == "single":
+            self._list_area.pack_forget()
+            if not self._single_info_frame.winfo_manager():
+                self._single_info_frame.pack(
+                    fill="x", padx=ui_styles.SPACING["comfortable"],
+                    pady=(ui_styles.SPACING["tight"], 0))
+        else:
+            self._single_info_frame.pack_forget()
+            if not self._list_area.winfo_manager():
+                self._list_area.pack(fill="both", expand=True)
+        self._refresh_action_state()
+
     def _detect_active_screen(self):
         if not self.winfo_exists():
             return
@@ -1046,60 +1172,60 @@ class PrintOrdersWindow(BaseToolWindow):
             return
         tcode = (self.engine.get_variable("po_tcode") or "").strip().upper()
         if tcode == "IW38":
+            self._set_mode("list")
             self._run_export(auto=True)
         elif tcode == "IW32":
-            self._read_open_order_into_field()
-        elif tcode:
-            self.report_status(
-                f"SAP is on {tcode}. Open IW38 to load orders, or open an "
-                "order in IW32.", "info")
+            self._set_mode("single")
+            self._read_iw32_info()
         else:
-            err = getattr(self.engine, "_last_error", "") or ""
-            if err:
-                self.report_status(f"Could not read SAP screen: {err[:120]}",
-                                   "warning")
-            else:
+            # No usable SAP screen: the list is the default working mode.
+            self._set_mode("list")
+            if tcode:
                 self.report_status(
-                    "Open IW38 to load orders, or open an order in IW32.", "info")
+                    f"SAP is on {tcode}. Open IW38 to load orders, or open an "
+                    "order in IW32.", "info")
+            else:
+                err = getattr(self.engine, "_last_error", "") or ""
+                if err:
+                    self.report_status(f"Could not read SAP screen: {err[:120]}",
+                                       "warning")
+                else:
+                    self.report_status(
+                        "Open IW38 to load orders, or open an order in IW32.",
+                        "info")
 
-    def _read_open_order_into_field(self):
-        self.engine.set_variable("po_current_order", "")
-        self.run_script("po_read_open_order", title="Read Open Order",
-                        on_success=self._on_detected_order_read)
+    def _read_iw32_info(self, on_success=None):
+        for name in ("po_iw_order", "po_iw_text", "po_iw_status",
+                     "po_iw_start", "po_iw_workplace"):
+            self.engine.set_variable(name, "")
+        self.run_script(
+            "po_read_iw32_info", title="Read IW32 Order",
+            on_success=on_success or self._on_iw32_info)
 
-    def _on_detected_order_read(self):
-        order = (self.engine.get_variable("po_current_order") or "").strip()
+    def _on_iw32_info(self):
+        order = (self.engine.get_variable("po_iw_order") or "").strip()
         if order:
             self.order_var.set(order)
-            self.report_status(
-                f"IW32 order {order} detected - click Process This Order", "info")
+            self.report_status(f"IW32 order {order} loaded", "info")
         else:
-            self.report_status(
-                "No order open in IW32; type an order number above.", "warning")
+            self.report_status("No order open in IW32.", "warning")
 
     def _print_open_order(self):
-        """Print one order: the Order field when filled, else IW32's screen."""
+        """Print the order currently open in IW32 (read fresh on click)."""
         if self._processing:
             return self.report_status("Stop processing first", "warning")
-
-        order = (self.order_var.get() or "").strip()
-        if order:
-            return self._print_single(order)
-
-        # Clear first: a failed read must not fall through to a stale number.
-        self.engine.set_variable("po_current_order", "")
         self.report_status("Reading order open in IW32...", "info")
-        self.run_script("po_read_open_order", title="Read Open Order",
-                        on_success=self._on_open_order_read)
+        self._read_iw32_info(on_success=self._on_open_order_read)
 
     def _on_open_order_read(self):
-        order = (self.engine.get_variable("po_current_order") or "").strip()
+        order = (self.engine.get_variable("po_iw_order")
+                 or self.engine.get_variable("po_current_order") or "").strip()
         if not order:
             return self.report_status(
-                "No order open in IW32. Type an order number above or open "
-                "one in SAP.", "warning")
+                "No order open in IW32. Open an order in SAP first.", "warning")
         self.order_var.set(order)
-        self._print_single(order)
+        short_text = self.engine.get_variable("po_iw_text") or ""
+        self._print_single(order, short_text)
 
     def _print_single(self, order: str, short_text: str = ""):
         if self._processing:
@@ -1410,13 +1536,40 @@ class PrintOrdersWindow(BaseToolWindow):
         self._export_next_attachment()
 
     def _finish_order(self, item: str | None, order: str):
-        attachments = self._create_image_pdf(order, self._active_stem)
+        """Build the order's PDF off the UI thread, then save and advance."""
+        stem = self._active_stem
+        workorder_name = f"{stem}_workorder.pdf"
+        layout = self._pdf_layout_var.get()
+        max_attach = self._max_attachments()
+        results: queue.Queue = queue.Queue()
+        self.report_status(f"Order {order}: building PDF", "info")
+
+        def worker():
+            try:
+                attachments = self._create_image_pdf(
+                    order, stem, layout, max_attach)
+                combined = self._combine_order_pdfs(
+                    stem, workorder_name, attachments)
+            except Exception:
+                combined = ""
+            results.put(combined)
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._collect_order_pdf(item, order, results)
+
+    def _collect_order_pdf(self, item: str | None, order: str,
+                           results: queue.Queue):
+        """Main thread: take the built PDF, then save it and mark the row."""
+        if not self.winfo_exists():
+            return
+        try:
+            combined = results.get_nowait()
+        except queue.Empty:
+            self.after(50, lambda: self._collect_order_pdf(item, order, results))
+            return
+
         status = self.engine.get_variable("po_print_status", "")
         ok = status == "printed"
-
-        workorder_name = f"{self._active_stem}_workorder.pdf"
-        combined = self._combine_order_pdfs(
-            self._active_stem, workorder_name, attachments)
         result = {
             "order": order,
             "short_text": self._active_text,
@@ -1560,15 +1713,16 @@ class PrintOrdersWindow(BaseToolWindow):
         self._stop_requested = False
         self._overwrite_single = None
 
-        if self._auto_merge_var.get():
+        done = self._done_count - self._failed_count
+        failed = self._failed_count
+        # Auto-stitch only a clean run; any failure leaves the PDFs alone.
+        if failed == 0 and not stopped and done:
             self._merge_done_orders(auto=True)
         self._refresh_action_state()
         self._refresh_history_btn()
         if self._history_pane is not None:
             self._history_pane.refresh()
 
-        done = self._done_count - self._failed_count
-        failed = self._failed_count
         if failed:
             self.report_status(
                 f"{done} done, {failed} failed - Retry Failed retries them",
@@ -1622,14 +1776,21 @@ class PrintOrdersWindow(BaseToolWindow):
         slug = slug[:40].strip("_")
         return f"WO_{order}_{slug}" if slug else f"WO_{order}"
 
-    def _create_image_pdf(self, order: str, stem: str) -> str:
+    def _create_image_pdf(self, order: str, stem: str,
+                          layout: str | None = None,
+                          max_attach: int | None = None) -> str:
         try:
             from PIL import Image
         except ImportError:
             return ""
 
+        if layout is None:
+            layout = self._pdf_layout_var.get()
+        if max_attach is None:
+            max_attach = self._max_attachments()
+
         paths = []
-        for i in range(self._max_attachments()):
+        for i in range(max_attach):
             p = os.path.join(self._temp_path, f"{order}_{i + 1}.bin")
             if os.path.exists(p):
                 paths.append(p)
@@ -1649,7 +1810,6 @@ class PrintOrdersWindow(BaseToolWindow):
         if not imgs:
             return ""
 
-        layout = self._pdf_layout_var.get()
         per = int(layout) if layout in ("1", "2", "4") else (
             1 if len(imgs) == 1 else 2 if len(imgs) == 2 else 4)
         pages = [self._compose_page(imgs[i:i + per], per)
@@ -1772,6 +1932,7 @@ class PrintOrdersWindow(BaseToolWindow):
             return
 
         self._merged_file = batch_file
+        self._merged_signature = self._merge_signature(merged)
         name = os.path.basename(batch_file)
         if self._merged_link is not None:
             self._merged_link.config(text=name)
@@ -1805,6 +1966,7 @@ class PrintOrdersWindow(BaseToolWindow):
         if not auto:
             self.report_status(
                 f"Merged {len(merged)} DONE order(s) into {name}", "success")
+        self._refresh_action_state()
 
     def _open_merged(self):
         if self._merged_file and os.path.exists(self._merged_file):
@@ -2024,6 +2186,7 @@ class PrintOrdersWindow(BaseToolWindow):
         self.grid_manager.clear()
         self._all_items = []
         self._row_errors.clear()
+        self._merged_signature = ()
         self._reset_session_outputs()
         self._filter_var.set("")
         self._rebuild_user_status_options()

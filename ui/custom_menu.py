@@ -154,6 +154,18 @@ class CustomMenuBar:
         self._menus[label] = dropdown
         self._fill_menu(dropdown, items)
 
+    def set_items(
+        self,
+        label: str,
+        items: list[MenuBarItem] | list[tuple[str, Callable]],
+    ) -> None:
+        """Replace a dropdown's items, for entries that follow a toggle."""
+        menu = self._menus.get(label)
+        if menu is None:
+            return
+        menu.delete(0, "end")
+        self._fill_menu(menu, items)
+
     def pack(self, **kwargs) -> None:
         self.frame.pack(**kwargs)
 

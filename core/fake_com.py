@@ -127,7 +127,8 @@ class FakeSession:
         self._datasets: dict = scenario.get("datasets", {})
         self._transactions: dict = scenario.get("transactions", {})
         self._defaults: dict = scenario.get("defaults", {})
-        self.current_transaction: str | None = None
+        self.current_transaction: str | None = self._defaults.get(
+            "start_transaction")
         self.last_export_file: str | None = None
         # Read sites that hit the "[mock] ..." fallback. The coverage test
         # asserts this stays empty so a script change can't silently starve

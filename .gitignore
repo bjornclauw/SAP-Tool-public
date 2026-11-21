@@ -59,6 +59,9 @@ data/si_options.json
 data/user_settings.json
 data/user_toolbar.json
 
+# Update bookkeeping (previous version for the revert action)
+data/update_state.json
+
 # SAP export files (used by PRH tool)
 tempexport/
 
@@ -70,6 +73,9 @@ tmp_user/
 
 # Local ATB history (per-machine, personal data)
 data/atb_history.json
+
+# Planner board (per-machine)
+data/planner.json
 
 # Print Orders output + history (per-machine)
 data/print_output/

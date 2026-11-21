@@ -5,3 +5,7 @@
 # tkinterdnd2 — needed for file drag-and-drop in PRH upload zone:
 #   python/python-3.11.8.amd64/python.exe -m pip install tkinterdnd2
 # This installs into the portable Python folder (gitignored, not tracked).
+
+# customtkinter — the Planner window's lifted board:
+#   python/python-3.11.8.amd64/python.exe -m pip install customtkinter
+customtkinter>=5.2

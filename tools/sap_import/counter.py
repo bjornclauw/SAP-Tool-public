@@ -60,14 +60,22 @@ class ImportCounter:
         self._notify()
         return self.count
 
+    def fetch(self, table: str = "WO", pg: str = "WP1"):
+        """Raw list request for a caller-managed guard; no counter state.
+
+        A worker may call this off the main thread; record the response with
+        `record()` (or note a failure with `note_request(False)`) afterwards.
+        """
+        if self._api is None:
+            return None
+        return self._api.get_list(table, pg)
+
     def poll(self, table: str = "WO", pg: str = "WP1") -> int | None:
         """Fetch the list read-only and count it. None when guarded or failed."""
         if not self.begin():
             return None
         try:
-            if self._api is None:
-                return None
-            result = self._api.get_list(table, pg)
+            result = self.fetch(table, pg)
             if result is None:
                 self.last_ok = False
                 self._notify()

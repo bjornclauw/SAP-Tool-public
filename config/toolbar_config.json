@@ -170,6 +170,11 @@
         "script": "' Process Orders: read the order number currently open in IW32\n_order = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/txtCAUFVD-AUFNR\").text\n{{ po_current_order }} = _order\n",
         "script_name": "Read Open Order in IW32"
       },
+      "po_read_iw32_info": {
+        "text": "Read IW32 Info",
+        "script": "' Process Orders: read the common IW32 header fields for the single-order card\n_order = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/txtCAUFVD-AUFNR\").text\n{{ po_iw_order }} = _order\n_text = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/subSUB_TEXT:SAPLCOIH:1103/cntlLTEXT/shell\").text\n{{ po_iw_text }} = _text\n_status = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/txtCAUFVD-STTXT\").text\n{{ po_iw_status }} = _status\n_start = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKZ/ssubSUB_AUFTRAG:SAPLCOIH:1120/subTERM:SAPLCOIH:7300/ctxtCAUFVD-GSTRP\").text\n{{ po_iw_start }} = _start\n_wp = session.findById(\"wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKZ/ssubSUB_AUFTRAG:SAPLCOIH:1120/subHEADER:SAPLCOIH:0154/ctxtCAUFVD-VAPLZ\").text\n{{ po_iw_workplace }} = _wp\n",
+        "script_name": "Read IW32 Order Info"
+      },
       "po_open_order": {
         "text": "Open Order",
         "script": "' Process Orders: open work order in IW32\nsession.findById(\"wnd[0]/tbar[0]/okcd\").text = \"/nIW32\"\nsession.findById(\"wnd[0]\").sendVKey 0\nsession.findById(\"wnd[0]/usr/ctxtCAUFVD-AUFNR\").text = \"{{po_current_order}}\"\nsession.findById(\"wnd[0]\").sendVKey 0\n",
@@ -407,10 +412,6 @@
       "si_system": {
         "var_name": "si_system",
         "default_value": "PRD400"
-      },
-      "po_order_entry": {
-        "var_name": "po_order_input",
-        "default_value": ""
       }
     },
     "headers": {

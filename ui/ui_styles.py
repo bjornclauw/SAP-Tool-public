@@ -92,6 +92,7 @@ TOOL_COLORS: dict[str, str] = {
     "sap_import": "#5c6bc0",  # indigo
     "order_searcher": "#2e7d32",  # green
     "vendor_manager": "#795548",  # brown
+    "planner": "#6d65e8",  # violet
 }
 SUPPORT_COLOR = "#546e7a"  # blue-grey: every helper modal
 

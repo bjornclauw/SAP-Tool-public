@@ -11,15 +11,24 @@ never touches it.
 
 from __future__ import annotations
 
+import json
+import re
 import subprocess
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 APP_ROOT = Path(__file__).resolve().parent.parent
 VERSION_FILE = "VERSION"
 DEFAULT_UPSTREAM = "origin/master"
+STATE_FILE = Path("data") / "update_state.json"
+
+_RELEASE_HEADING = re.compile(
+    r"^##\s+(\d{4}\.\d{2}\.\d{2}(?:\.\d+)?)\s*[—–-]\s*(\d{4}-\d{2}-\d{2})\s*$",
+    re.MULTILINE,
+)
 
 GitRunner = Callable[[Path, list[str]], str]
 
@@ -36,12 +45,20 @@ class CommitInfo:
 
 
 @dataclass(frozen=True)
+class ReleaseNote:
+    version: str
+    date: str
+    lines: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class UpdateCheck:
     local: str = ""
     remote: str | None = None
     upstream: str | None = None
     newer: bool = False
     commits: tuple[CommitInfo, ...] = ()
+    notes: tuple[ReleaseNote, ...] = ()
     error: str | None = None
 
 
@@ -126,15 +143,66 @@ def check_for_update(root: Path | str = APP_ROOT, git: GitRunner = run_git) -> U
             remote = git(root, ["show", f"{upstream}:{VERSION_FILE}"]).strip()
         except UpdateError:
             remote = None
+        newer = int(count.strip() or "0") > 0
+        notes = _notes_since(local, release_notes(root, upstream, git)) if newer else ()
         return UpdateCheck(
             local=local,
             remote=remote,
             upstream=upstream,
-            newer=int(count.strip() or "0") > 0,
+            newer=newer,
             commits=tuple(commits),
+            notes=notes,
         )
     except (UpdateError, ValueError) as exc:
         return UpdateCheck(error=str(exc))
+
+
+def release_notes(root: Path | str, ref: str,
+                  git: GitRunner = run_git) -> list[ReleaseNote]:
+    """User-facing release sections from the upstream README, newest first.
+
+    The public README is the changelog; a clone without those sections simply
+    returns no notes and the dialog falls back to commit subjects.
+    """
+    try:
+        text = git(Path(root), ["show", f"{ref}:README.md"])
+    except Exception:
+        return []
+    return parse_release_notes(text)
+
+
+def parse_release_notes(text: str) -> list[ReleaseNote]:
+    headings = list(_RELEASE_HEADING.finditer(text))
+    notes: list[ReleaseNote] = []
+    for index, match in enumerate(headings):
+        end = (headings[index + 1].start()
+               if index + 1 < len(headings) else len(text))
+        lines: list[str] = []
+        for raw in text[match.end():end].splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("- "):
+                lines.append(line[2:].strip())
+            elif lines:
+                lines[-1] = f"{lines[-1]} {line}"
+        notes.append(ReleaseNote(match.group(1), match.group(2), tuple(lines)))
+    return notes
+
+
+def _version_key(value: str) -> tuple[int, ...]:
+    try:
+        return tuple(int(part) for part in value.split("."))
+    except ValueError:
+        return ()
+
+
+def _notes_since(local: str, notes: list[ReleaseNote]) -> tuple[ReleaseNote, ...]:
+    local_key = _version_key(local)
+    if not local_key:
+        return tuple(notes[:3])
+    return tuple(note for note in notes
+                 if _version_key(note.version) > local_key)
 
 
 def _parse_log(output: str) -> list[CommitInfo]:
@@ -147,7 +215,11 @@ def _parse_log(output: str) -> list[CommitInfo]:
 
 
 def apply_update(root: Path | str = APP_ROOT, git: GitRunner = run_git) -> str:
-    """Fetch and hard-reset the tracked files to the upstream tip."""
+    """Fetch and hard-reset the tracked files to the upstream tip.
+
+    Records the commit and version that were installed before the reset, so
+    the update dialog can offer a one-step revert.
+    """
     root = Path(root)
     if not is_git_install(root):
         raise UpdateError(
@@ -156,8 +228,67 @@ def apply_update(root: Path | str = APP_ROOT, git: GitRunner = run_git) -> str:
         )
     git(root, ["fetch", "--prune", "origin"])
     upstream = upstream_ref(root, git)
+    try:
+        previous_sha = git(root, ["rev-parse", "HEAD"]).strip()
+    except Exception:
+        previous_sha = ""
+    try:
+        previous_version = read_version(root)
+    except UpdateError:
+        previous_version = ""
     git(root, ["reset", "--hard", upstream])
+    version = read_version(root)
+    if previous_sha:
+        _write_state(root, {
+            "from_sha": previous_sha,
+            "from_version": previous_version,
+            "to_version": version,
+            "applied_at": datetime.now().isoformat(timespec="seconds"),
+        })
+    return version
+
+
+def previous_update(root: Path | str = APP_ROOT) -> dict | None:
+    """The state recorded by the last successful update, or None."""
+    try:
+        data = json.loads(_state_path(root).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    if not data.get("from_sha") or not data.get("from_version"):
+        return None
+    return data
+
+
+def revert_update(root: Path | str = APP_ROOT, git: GitRunner = run_git) -> str:
+    """Hard-reset to the version recorded before the last update."""
+    root = Path(root)
+    state = previous_update(root)
+    if state is None:
+        raise UpdateError("No previous version is recorded.")
+    sha = str(state["from_sha"])
+    if not re.fullmatch(r"[0-9a-fA-F]{7,40}", sha):
+        raise UpdateError("The recorded previous version is invalid.")
+    git(root, ["reset", "--hard", sha])
+    try:
+        _state_path(root).unlink()
+    except OSError:
+        pass
     return read_version(root)
+
+
+def _state_path(root: Path | str) -> Path:
+    return Path(root) / STATE_FILE
+
+
+def _write_state(root: Path | str, data: dict) -> None:
+    try:
+        path = _state_path(root)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    except OSError:
+        pass
 
 
 def relaunch(root: Path | str = APP_ROOT) -> None:

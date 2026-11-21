@@ -8,6 +8,8 @@ exactly what this rework removes.
 
 from __future__ import annotations
 
+import queue
+import threading
 import tkinter as tk
 from tkinter import ttk
 
@@ -27,6 +29,7 @@ from .custom_menu import CustomMenuBar, MenuBarItem
 from .custom_widgets import CustomButton, CustomEntry, CustomLabel, ScriptRunnerMixin, _get_config
 from .debugger import DebuggerWindow
 from .dock_manager import DockManager, load_logo_image
+from .dpi import pin_dpi_unaware
 from .ui_styles import (
     card_frame,
     styled_frame,
@@ -69,6 +72,24 @@ OPEN_APPS = [
     ("purchase_request", "PRH", "_open_purchase_request"),
     ("print_orders", "Print", "_open_print_orders"),
     ("sap_import", "Import", "_open_sap_import"),
+    ("planner", "Planner", "_open_planner"),
+]
+# Tool windows the user can show or hide from Settings.
+# (key, menu label, catalogue label, one-line description, default on, opener)
+TOOL_CATALOGUE = [
+    ("purchase_request", "Purchase Request Helper", "Purchase Request Helper",
+     "Create purchase requests and attach documents.", True,
+     "_open_purchase_request"),
+    ("print_orders", "Print Orders", "Print Orders",
+     "Print work orders from IW38 as PDFs.", True, "_open_print_orders"),
+    ("sap_import", "SAP Import", "SAP Import — Work Orders",
+     "Upload work orders and photos to BCsys.", True, "_open_sap_import"),
+    ("planner", "Planner", "Planner (unfinished)",
+     "Day/team planning board; also needs Power User.", False,
+     "_open_planner"),
+    ("revisions", "Revisions Register", "Revisions Register",
+     "Manage revision weeks and options.", True,
+     "_open_revisions_register"),
 ]
 # Frames for the Import marker while auto upload runs (Braille spinner).
 IMPORT_SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
@@ -76,6 +97,8 @@ IMPORT_SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 
 class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
     def __init__(self):
+        # Before the root window exists: one fixed DPI mode for the app.
+        pin_dpi_unaware()
         super().__init__()
         self.title("SAP Work Order Tool")
         self.config(bg=ui_styles.COLORS["bg"])
@@ -88,6 +111,7 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         self.config_data = _get_config()
 
         settings = user_settings.load_user_settings()
+        self._tools_enabled = self._enabled_from(settings)
         i18n.set_language(settings.get("ui_language", i18n.AUTO_LANGUAGE))
         self.fake_sap = tk.BooleanVar(value=bool(settings.get("fake_sap", False)))
         self.always_on_top = tk.BooleanVar(value=bool(settings.get("always_on_top", False)))
@@ -121,6 +145,8 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         self.tool_windows: dict[str, tk.Toplevel] = {}
         self._widget_registry: dict[str, tk.Widget] = {}  # Maps component_id -> widget
         self._poll_id = None  # for after() polling
+        self._import_poll_running = False
+        self._import_down = False
         self._open_app_buttons: dict[str, tk.Button] = {}
         self._open_chip_close: dict[str, tk.Button] = {}
         self.dock = DockManager(
@@ -401,6 +427,7 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
     # ---- docked helper rail --------------------------------------------
     def _build_helper_rail(self):
         self._helper_rail_visible = False
+        self._helper_rail_rows: dict[str, tk.Frame] = {}
         self._helper_rail = tk.Frame(
             self,
             bg=ui_styles.COLORS["surface"],
@@ -425,10 +452,13 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         ).pack(side="right")
 
         for _key, badge, label, opener, color in HELPER_RAIL_ITEMS:
+            if _key not in self._tools_enabled:
+                continue
             row = tk.Frame(
                 self._helper_rail, bg=ui_styles.COLORS["surface"],
                 cursor="hand2")
             row.pack(fill="x", padx=6, pady=1)
+            self._helper_rail_rows[_key] = row
             badge_lbl = tk.Label(
                 row, text=badge, bg=color, fg="#ffffff",
                 font=(ui_styles.FONTS["body"][0], 8, "bold"),
@@ -483,8 +513,21 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
                     r, t, False))
 
         self._helper_rail.place_forget()
-        self.bind("<Escape>", lambda _e: self._close_helper_rail(), "+")
-        self.bind("<Unmap>", lambda _e: self._close_helper_rail(), "+")
+        if not getattr(self, "_helper_rail_bound", False):
+            self.bind("<Escape>", lambda _e: self._close_helper_rail(), "+")
+            self.bind("<Unmap>", lambda _e: self._close_helper_rail(), "+")
+            self._helper_rail_bound = True
+
+    def _rebuild_helper_rail(self):
+        """Rebuild the rail after the tool-window catalogue changed."""
+        was_visible = bool(getattr(self, "_helper_rail_visible", False))
+        try:
+            self._helper_rail.destroy()
+        except Exception:
+            pass
+        self._build_helper_rail()
+        if was_visible and self.dock.dock_enabled.get():
+            self._open_helper_rail()
 
     def _hover_helper_row(self, row, label, active):
         bg = (ui_styles.COLORS["surface_hover"] if active
@@ -607,15 +650,20 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
 
         language_box.bind("<<ComboboxSelected>>", _on_language_picked)
 
-        toggles = [
-            ("Always on Top", self.always_on_top, self._toggle_always_on_top),
-            ("Debug Mode", self.debug_mode, self._toggle_debug_mode),
-            ("Power User", self.power_user, self._toggle_power_user),
-            ("Debug Console", self.show_console, self._toggle_console),
-            ("Fake SAP", self.fake_sap, self._toggle_fake),
+        toggles = [("Always on Top", self.always_on_top, self._toggle_always_on_top)]
+        if self.power_user.get():
+            toggles.append(
+                ("Debug Mode", self.debug_mode, self._toggle_debug_mode))
+        toggles.append(("Power User", self.power_user, self._toggle_power_user))
+        if self.power_user.get():
+            toggles.extend([
+                ("Debug Console", self.show_console, self._toggle_console),
+                ("Fake SAP", self.fake_sap, self._toggle_fake),
+            ])
+        toggles.extend([
             ("Dock top", self.dock.dock_enabled, self._toggle_dock),
             ("Auto-hide", self.dock.autohide, self._toggle_autohide),
-        ]
+        ])
         for text, var, command in toggles:
             tk.Checkbutton(
                 body, text=text, variable=var, command=command,
@@ -626,6 +674,30 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
                 selectcolor=ui_styles.COLORS["surface"],
                 highlightthickness=0, bd=0,
             ).pack(fill="x", pady=1)
+        ttk.Separator(body).pack(fill="x", pady=(8, 4))
+        styled_label(
+            body, "Tool windows", font=ui_styles.FONTS["header"], anchor="w",
+            bg=ui_styles.COLORS["bg"],
+        ).pack(fill="x")
+        tool_vars: dict[str, tk.BooleanVar] = {}
+        for key, _menu, name, description, _default, _opener in TOOL_CATALOGUE:
+            tool_vars[key] = tk.BooleanVar(value=key in self._tools_enabled)
+            tk.Checkbutton(
+                body, text=name, variable=tool_vars[key],
+                command=lambda: self._on_tool_toggled(tool_vars),
+                font=ui_styles.FONTS["body"], anchor="w",
+                bg=ui_styles.COLORS["bg"], fg=ui_styles.COLORS["text"],
+                activebackground=ui_styles.COLORS["bg"],
+                activeforeground=ui_styles.COLORS["text"],
+                selectcolor=ui_styles.COLORS["surface"],
+                highlightthickness=0, bd=0,
+            ).pack(fill="x", pady=(2, 0))
+            styled_label(
+                body, description,
+                font=(ui_styles.FONTS["body"][0], 8), anchor="w",
+                fg=ui_styles.COLORS["text_secondary"],
+                bg=ui_styles.COLORS["bg"],
+            ).pack(fill="x", padx=(24, 0))
         buttons = styled_frame(win)
         buttons.pack(fill="x", padx=12, pady=(4, 12))
         ui_styles.styled_button(
@@ -645,6 +717,19 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         win.focus_force()
         correct_for_decorations(win, self)
         apply_titlebar_color(win, ui_styles.SUPPORT_COLOR)
+
+    def _discard_settings_window(self, win):
+        try:
+            win.destroy()
+        except tk.TclError:
+            pass
+
+    def _on_tool_toggled(self, tool_vars: dict[str, tk.BooleanVar]):
+        """A catalogue checkbox changed: persist and apply immediately."""
+        chosen = [key for key, _menu, _name, _desc, _default, _opener
+                  in TOOL_CATALOGUE if tool_vars[key].get()]
+        self._apply_enabled_tools(chosen)
+        self.report_status("Tool windows updated", "info")
 
     def _cancel_tray_anim(self):
         self._tray_anim_gen += 1
@@ -1039,42 +1124,46 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             "dock_autohide": bool(self.dock.autohide.get()),
         })
 
+    @staticmethod
+    def _enabled_from(settings: dict) -> set[str]:
+        """Tool keys the user enabled; unknown keys are ignored."""
+        known = {key for key, *_rest in TOOL_CATALOGUE}
+        saved = settings.get("enabled_tools")
+        if isinstance(saved, list):
+            return {key for key in saved if key in known}
+        return {key for key, _menu, _name, _desc, default, _opener in TOOL_CATALOGUE
+                if default}
+
+    def _apply_enabled_tools(self, enabled: list[str]):
+        """Persist the catalogue choice and apply it everywhere it shows."""
+        known = {key for key, *_rest in TOOL_CATALOGUE}
+        self._tools_enabled = {key for key in enabled if key in known}
+        ordered = [key for key, *_rest in TOOL_CATALOGUE
+                   if key in self._tools_enabled]
+        self._save_user_settings({"enabled_tools": ordered})
+        self.menu_bar.set_items("Tools", self._tools_menu_items())
+        self._rebuild_helper_rail()
+        for key in list(self.tool_windows):
+            if key not in self._tools_enabled:
+                self._close_tool_window(key)
+        self._set_import_enabled("sap_import" in self._tools_enabled)
+
+    def _tools_menu_items(self):
+        """Tools entries: user-enabled helpers; the Planner also needs Power
+        User because it is unfinished."""
+        items = []
+        for key, label, _name, _desc, _default, opener in TOOL_CATALOGUE:
+            if key not in self._tools_enabled:
+                continue
+            if key == "planner" and not self.power_user.get():
+                continue
+            items.append(MenuBarItem(label, getattr(self, opener)))
+        return items
+
     def _build_menu(self):
         self.menu_bar = CustomMenuBar(self, height=30)
-        self.menu_bar.add_menu(
-            "Tools",
-            [
-                MenuBarItem("Purchase Request Helper", self._open_purchase_request),
-                MenuBarItem("Print Orders", self._open_print_orders),
-                MenuBarItem("SAP Import", self._open_sap_import),
-                MenuBarItem("Revisions Register", self._open_revisions_register),
-            ],
-        )
-        self.menu_bar.add_menu(
-            "Settings",
-            [
-                MenuBarItem("Always on Top", variable=self.always_on_top,
-                            command=self._toggle_always_on_top),
-                MenuBarItem("Debug Mode", variable=self.debug_mode,
-                            command=self._toggle_debug_mode),
-                MenuBarItem("Power User", variable=self.power_user,
-                            command=self._toggle_power_user),
-                MenuBarItem("Debug Console", variable=self.show_console,
-                            command=self._toggle_console),
-                MenuBarItem("Fake SAP", variable=self.fake_sap,
-                            command=self._toggle_fake),
-                MenuBarItem("", separator=True),
-                MenuBarItem("Dock top", variable=self.dock.dock_enabled,
-                            command=self._toggle_dock),
-                MenuBarItem("Auto-hide", variable=self.dock.autohide,
-                            command=self._toggle_autohide),
-                MenuBarItem("", separator=True),
-                MenuBarItem("Language...", command=self._open_dock_settings),
-                MenuBarItem("Check for updates…", command=self._open_update_modal),
-                MenuBarItem("", separator=True),
-                MenuBarItem("Quit", command=self._on_close),
-            ],
-        )
+        self.menu_bar.add_menu("Tools", self._tools_menu_items())
+        self.menu_bar.add_menu("Settings", self._settings_menu_items())
         self.menu_bar.pack(side="top", fill="x")
         # Remove default menu
         self.config(menu=None)
@@ -1094,9 +1183,14 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         return None
 
     def _open_update_modal(self):
+        from core import updater
+
         from .update_modal import UpdateWindow
 
-        UpdateWindow.open(self, self._update_blocker, self._on_close)
+        UpdateWindow.open(
+            self, self._update_blocker, self._on_close,
+            previous_fn=updater.previous_update,
+        )
 
     def _open_week_popup(self):
         from tools.sap_import.week_popup import WeekRevisionPopup
@@ -1118,7 +1212,8 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             bar, "", anchor="e", font=(ui_styles.FONTS["body"][0], 8, "bold"),
             fg=ui_styles.COLORS["text_secondary"],
         )
-        self.import_counter_label.pack(side="right", padx=(8, 12))
+        if "sap_import" in self._tools_enabled:
+            self.import_counter_label.pack(side="right", padx=(8, 12))
         self.import_counter_label.bind("<Button-1>", lambda e: self._open_sap_import())
         # Toolbar-scoped pending counter: polls the server list endpoint every
         # 2 minutes (read-only); the Import window's tick shares the same
@@ -1153,16 +1248,55 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             fg=ui_styles.COLORS["text_secondary"],
         )
         self.connection_label.pack(side="right")
+        # While BCsys is down this label becomes the retry control.
+        self.connection_label.bind(
+            "<Button-1>", lambda _e: self._retry_import_counter())
 
     def _start_import_counter(self):
         # Immediate, offline-friendly display from the local queue; the server
         # poll (read-only) takes over on its first 2-minute tick.
         self._render_local_import_counter()
+        self._cancel_import_timer()
+        if "sap_import" not in self._tools_enabled:
+            return
         self._import_poll_id = self.after(120000, self._poll_import_counter)
 
+    def _cancel_import_timer(self):
+        if getattr(self, "_import_poll_id", None):
+            try:
+                self.after_cancel(self._import_poll_id)
+            except Exception:
+                pass
+            self._import_poll_id = None
+
+    def _set_import_enabled(self, enabled: bool):
+        """Show or remove every BCsys piece that belongs to SAP Import."""
+        self._cancel_import_timer()
+        self._import_down = False
+        if enabled:
+            if self.import_counter_label.winfo_manager() == "":
+                self.import_counter_label.pack(side="right", padx=(8, 12))
+            self._start_import_counter()
+            return
+        self.import_counter_label.pack_forget()
+        if self._import_poll_running:
+            self._import_poll_running = False
+            try:
+                self._import_counter.end()
+            except Exception:
+                pass
+        self._sap_import_ok = None
+        self._render_sap_indicator()
+
     def _on_import_counter_changed(self):
-        """A fresh count landed from the Import tick: render it now."""
+        """A fresh count landed from the toolbar poll or the Import tick."""
         self._sap_import_ok = getattr(self._import_counter, "last_ok", None)
+        if self._sap_import_ok is False:
+            self._import_down = True
+            self._cancel_import_timer()
+        elif self._sap_import_ok is True and self._import_down:
+            self._import_down = False
+            self._resume_import_poll()
         try:
             self.after(0, self._render_import_counter)
             self.after(0, self._render_sap_indicator)
@@ -1178,6 +1312,8 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
 
     def _render_local_import_counter(self):
         """Pending/failed/done from the local si_queue.json (no network)."""
+        if "sap_import" not in self._tools_enabled:
+            return
         try:
             import json
             from pathlib import Path
@@ -1207,29 +1343,105 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             self.import_counter_label.config(text="◈ Import: —", cursor="hand2")
 
     def _poll_import_counter(self):
-        """2-minute server pending count (read-only).
+        """Ask for the server pending count without blocking the UI.
 
-        When the Import window is auto-uploading, its tick already fetched the
-        list and recorded the count here, so this reuses it with no request;
-        otherwise it polls the list endpoint itself.
+        The HTTP call runs on a worker thread; `_collect_import_counter`
+        picks the answer up on the main thread. A failure stops the timer
+        until the indicator is clicked (`_retry_import_counter`).
         """
+        self._import_poll_id = None
+        if "sap_import" not in self._tools_enabled or self._import_down:
+            return
         if self._import_window_state() != "running":
+            if not self._start_import_poll():
+                self._schedule_import_counter()
+            return
+        self._schedule_import_counter()
+
+    def _start_import_poll(self) -> bool:
+        """Start one background fetch; False when one is already in flight or
+        the Import window holds the shared guard."""
+        if self._import_poll_running or not self._import_counter.begin():
+            return False
+        try:
+            pg = (self.engine.get_variable("si_pg")
+                  or user_settings.load_user_settings().get("si_pg")
+                  or "WP1")
+        except Exception:
+            pg = "WP1"
+        self._import_poll_running = True
+        results: queue.Queue = queue.Queue()
+        threading.Thread(
+            target=self._fetch_import_counter,
+            args=(pg, results),
+            daemon=True,
+        ).start()
+        self._collect_import_counter(results)
+        return True
+
+    def _retry_import_counter(self):
+        """Click on the SAP indicator while BCsys is down."""
+        if not self._import_down or "sap_import" not in self._tools_enabled:
+            return
+        if self._import_poll_running:
+            return
+        self.report_status("Retrying BCsys...", "info")
+        self._start_import_poll()
+
+    def _resume_import_poll(self):
+        """Restart the 2-minute timer after a success, once only."""
+        if ("sap_import" in self._tools_enabled
+                and not self._import_down
+                and self._import_poll_id is None):
+            self._schedule_import_counter()
+
+    def _fetch_import_counter(self, pg: str, results: queue.Queue):
+        """Worker: network only -- no Tk or counter state off the main thread."""
+        try:
+            result = self._import_counter.fetch("WO", pg)
+        except Exception:
+            result = None
+        results.put(result)
+
+    def _collect_import_counter(self, results: queue.Queue):
+        """Main thread: record a finished poll and schedule the next tick."""
+        if not self.winfo_exists():
+            return
+        try:
+            result = results.get_nowait()
+        except queue.Empty:
+            self._import_poll_id = self.after(
+                100, lambda: self._collect_import_counter(results))
+            return
+        self._import_poll_running = False
+        if "sap_import" not in self._tools_enabled:
             try:
-                pg = (self.engine.get_variable("si_pg")
-                      or user_settings.load_user_settings().get("si_pg")
-                      or "WP1")
-            except Exception:
-                pg = "WP1"
-            try:
-                self._import_counter.poll("WO", pg)
+                self._import_counter.end()
             except Exception:
                 pass
+            return
+        try:
+            if result is None:
+                self._import_counter.note_request(False)
+            else:
+                self._import_counter.record(result.get("data", []))
+        finally:
+            self._import_counter.end()
         self._render_import_counter()
         self._sap_import_ok = self._import_counter.last_ok
         self._render_sap_indicator()
+        self._import_down = self._sap_import_ok is False
+        if self._import_down:
+            self._cancel_import_timer()
+        else:
+            self._resume_import_poll()
+
+    def _schedule_import_counter(self):
         self._import_poll_id = self.after(120000, self._poll_import_counter)
 
     def _render_import_counter(self):
+        if "sap_import" not in self._tools_enabled:
+            return
         counter = self._import_counter
         if not counter.known:
             return  # keep the local display until a server answer lands
@@ -1322,6 +1534,17 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
                               on_queue_changed=self._on_import_queue_changed)
         self._track_tool_window(key, win)
 
+    def _open_planner(self):
+        from tools.planner import PlannerWindow
+
+        key = "planner"
+        win = self.tool_windows.get(key)
+        if win is not None and win.winfo_exists():
+            self._bring_to_front(win)
+            return
+        win = PlannerWindow(self, self.engine)
+        self._track_tool_window(key, win)
+
     # ---- edit modal --------------------------------------------------------
     # Right-click is now handled by CustomComponent itself
     # No additional methods needed in SapToolbar
@@ -1354,9 +1577,60 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             self._process_pending_debug_script()
         self._save_meta_value("debug_mode", self.debug_mode.get())
 
+    def _settings_menu_items(self):
+        """Settings entries; developer toggles need Power User."""
+        items = [MenuBarItem("Always on Top", variable=self.always_on_top,
+                             command=self._toggle_always_on_top)]
+        if self.power_user.get():
+            items.append(MenuBarItem("Debug Mode", variable=self.debug_mode,
+                                     command=self._toggle_debug_mode))
+        items.append(MenuBarItem("Power User", variable=self.power_user,
+                                 command=self._toggle_power_user))
+        if self.power_user.get():
+            items.append(MenuBarItem("Debug Console", variable=self.show_console,
+                                     command=self._toggle_console))
+            items.append(MenuBarItem("Fake SAP", variable=self.fake_sap,
+                                     command=self._toggle_fake))
+        items.extend([
+            MenuBarItem("", separator=True),
+            MenuBarItem("Dock top", variable=self.dock.dock_enabled,
+                        command=self._toggle_dock),
+            MenuBarItem("Auto-hide", variable=self.dock.autohide,
+                        command=self._toggle_autohide),
+            MenuBarItem("", separator=True),
+            MenuBarItem("Settings...", command=self._open_dock_settings),
+            MenuBarItem("Check for updates…", command=self._open_update_modal),
+            MenuBarItem("", separator=True),
+            MenuBarItem("Quit", command=self._on_close),
+        ])
+        return items
+
+    def _disable_developer_modes(self):
+        """Power User is off: leave no hidden dev mode running."""
+        if self.fake_sap.get():
+            self.fake_sap.set(False)
+            self._toggle_fake()
+        if self.debug_mode.get():
+            self.debug_mode.set(False)
+            self._toggle_debug_mode()
+        if self.show_console.get():
+            self.show_console.set(False)
+            self._toggle_console()
+
     def _toggle_power_user(self):
-        """Power-user mode: right-click editing on tool-window buttons."""
+        """Power-user mode: right-click editing on tool-window buttons and the
+        developer toggles. Turning it off also leaves those modes off, so no
+        hidden dev mode keeps running."""
         self._save_meta_value("power_user", self.power_user.get())
+        if not self.power_user.get():
+            self._disable_developer_modes()
+        self.menu_bar.set_items("Tools", self._tools_menu_items())
+        self.menu_bar.set_items("Settings", self._settings_menu_items())
+        win = getattr(self, "_dock_settings_win", None)
+        if win is not None and win.winfo_exists():
+            self._dock_settings_win = None
+            # Deferred: the toggle may come from a checkbox in that window.
+            self.after(0, lambda w=win: self._discard_settings_window(w))
         self.report_status(
             "Power User on - tool-window buttons can be right-click edited"
             if self.power_user.get() else "Power User off",
@@ -1456,9 +1730,9 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         if not self._sap_connected:
             return ("\u25cf SAP Disconnected", ui_styles.COLORS["error"],
                     "\u25cf SAP \u2715", "#ffd6d6")
-        if self._sap_import_ok is False:
-            return ("\u25cf SAP unreachable (Import)", ui_styles.COLORS["error"],
-                    "\u25cf SAP !", "#ffd6d6")
+        if self._sap_import_ok is False and "sap_import" in self._tools_enabled:
+            return ("\u25cf BCsys unreachable", ui_styles.COLORS["error"],
+                    "\u25cf BCsys !", "#ffd6d6")
         name = "Fake SAP" if self._sap_is_fake() else "SAP"
         return (f"\u25cf {name} ready", ui_styles.COLORS["success"],
                 f"\u25cf {name}", "#e6f5e6")
@@ -1474,8 +1748,10 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             pill_text, pill_fg = f"\u25c9 SAP {frame}", "#e6f5e6"
         else:
             text, color, pill_text, pill_fg = self._sap_idle_parts()
+        retryable = self._import_down and "sap_import" in self._tools_enabled
         try:
-            self.connection_label.config(text=text, fg=color)
+            self.connection_label.config(
+                text=text, fg=color, cursor="hand2" if retryable else "")
         except tk.TclError:
             return
         try:
@@ -1533,6 +1809,14 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             except tk.TclError:
                 pass
             self._import_poll_id = None
+        if getattr(self, "_import_poll_running", False):
+            # A fetch outlived the window: release its guard; the daemon
+            # worker's result is simply never collected.
+            self._import_poll_running = False
+            try:
+                self._import_counter.end()
+            except Exception:
+                pass
 
     def _poll(self):
         """Poll worker thread for completed jobs."""

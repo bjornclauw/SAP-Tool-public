@@ -111,16 +111,16 @@ IW32_ATTACH_EXPORT = [
 # IW38 order search grid (includes released rows for the print check).
 IW38_ORDERS = [
     {"Order": "4001234", "Type": "PM02", "Description": "Pump repair - north unit",
-     "Status": "CLSD", "PlannerGroup": "WP-G", "FunLocation": "CLWA-P03-FR",
+     "Status": "CRTD", "PlannerGroup": "WP-G", "FunLocation": "CLWA-P03-FR",
      "Revision": "R2024-001", "BasicStart": "12.01.2024", "ARBPL": "ME-01"},
     {"Order": "4001235", "Type": "PM01", "Description": "Valve replacement - line 3",
-     "Status": "OPEN vrijgegeven CRTD", "PlannerGroup": "Ex-VERM", "FunLocation": "CLWA-P02-BR",
+     "Status": "REL", "PlannerGroup": "Ex-VERM", "FunLocation": "CLWA-P02-BR",
      "Revision": "R2024-002", "BasicStart": "15.03.2024", "ARBPL": "ME-02"},
     {"Order": "4001236", "Type": "PM03", "Description": "Electrical inspection",
-     "Status": "vrijgegeven REL PRT", "PlannerGroup": "WP-G", "FunLocation": "CLWA-P01-EL",
+     "Status": "REL", "PlannerGroup": "WP-G", "FunLocation": "CLWA-P01-EL",
      "Revision": "", "BasicStart": "22.06.2024", "ARBPL": "ME-03"},
     {"Order": "4001237", "Type": "PM02", "Description": "Bearing replacement",
-     "Status": "vrijgegeven REL", "PlannerGroup": "Ex-VERM", "FunLocation": "CLWA-P03-FR",
+     "Status": "REL", "PlannerGroup": "Ex-VERM", "FunLocation": "CLWA-P03-FR",
      "Revision": "R2024-003", "BasicStart": "02.09.2024", "ARBPL": "ME-01"},
     {"Order": "4001238", "Type": "PM01", "Description": "Piping overhaul - section B",
      "Status": "CRTD", "PlannerGroup": "WP-G", "FunLocation": "CLWA-P04-PI",
@@ -135,6 +135,9 @@ DATASETS = {
 }
 
 DEFAULT_GRID = "me5a_pr"
+# A fresh fake session starts on the IW38 list: Print Orders auto-loads it,
+# and other scripts still navigate to their own transactions.
+START_TRANSACTION = "IW38"
 
 # --- scalar responses --------------------------------------------------------
 # Path-substring -> {member: value}. Mirrors the hardcoded IW32 header/detail

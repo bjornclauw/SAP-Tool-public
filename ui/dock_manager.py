@@ -43,6 +43,9 @@ DOCK_ANIM_MS = 220
 DOCK_ANIM_STEPS = 12
 PEEK_FADE_MS = 150
 PEEK_FADE_STEPS = 7
+# Hover dwell on the collapsed pill before the bar restores: a quick pass
+# across the top edge must not pop the toolbar open.
+PEEK_SHOW_DELAY_MS = 1000
 # Windows drops -topmost across withdraw/deiconify and when a helper takes
 # focus; re-assert it periodically while docked.
 TOPMOST_WATCH_MS = 2000
@@ -113,6 +116,7 @@ class DockManager:
         self._anim_gen = 0
         self._topmost_id: str | None = None
         self._peek_hover_id: str | None = None
+        self._peek_show_id: str | None = None
         self._grab_watch_id: str | None = None
 
         root.bind("<Enter>", self._on_enter, "+")
@@ -205,6 +209,7 @@ class DockManager:
 
     def destroy(self):
         self._destroyed = True
+        self._cancel_peek_show()
         self._cancel_anim()
         self._stop_topmost_watch()
         self._stop_grab_watch()
@@ -503,6 +508,7 @@ class DockManager:
             self._anim_id = None
 
     def _show_main(self, animate: bool = True, focus: bool = True):
+        self._cancel_peek_show()
         self._cancel_anim()
         self._destroy_peek()
         if not animate:
@@ -853,7 +859,7 @@ class DockManager:
             h = max(inner.winfo_reqheight() + 4, PEEK_HEIGHT)
             peek.geometry(f"{w}x{h}+{mx + max(0, (mw - w) // 2)}+{my}")
             # Bound on the pill: child Enter/click events bubble to it.
-            peek.bind("<Enter>", lambda _e: self._show_main())
+            peek.bind("<Enter>", self._schedule_peek_show)
             peek.bind("<Button-1>", lambda _e: self._show_main())
             self._peek = peek
             self._assert_topmost()
@@ -905,12 +911,37 @@ class DockManager:
                 pass
             self._peek_hover_id = None
 
+    def _schedule_peek_show(self, _event=None):
+        """Wait PEEK_SHOW_DELAY_MS on the pill before restoring the bar."""
+        if self._peek_show_id is not None or self._destroyed:
+            return
+        try:
+            self._peek_show_id = self.root.after(
+                PEEK_SHOW_DELAY_MS, self._show_from_peek)
+        except Exception:
+            self._peek_show_id = None
+
+    def _cancel_peek_show(self):
+        if self._peek_show_id is not None:
+            try:
+                self.root.after_cancel(self._peek_show_id)
+            except Exception:
+                pass
+            self._peek_show_id = None
+
+    def _show_from_peek(self):
+        self._peek_show_id = None
+        if self._peek is None or self._destroyed:
+            return
+        self._show_main()
+        self._start_grab_watch()
+
     def _peek_hover_tick(self):
-        """Restore the bar when the pointer reaches the pill.
+        """Restore the bar after a short dwell when the pointer reaches the pill.
 
         A modal helper's grab routes pointer events to the helper, so the
         pill's <Enter> binding never fires while one is open. Polling the
-        pointer keeps hover-to-restore working in that case.
+        pointer keeps dwell-to-restore working in that case.
         """
         self._peek_hover_id = None
         peek = self._peek
@@ -923,15 +954,16 @@ class DockManager:
             x, y = peek.winfo_rootx(), peek.winfo_rooty()
             w, h = peek.winfo_width(), peek.winfo_height()
             if x <= px <= x + w and y <= py <= y + h:
-                self._show_main()
-                self._start_grab_watch()
-                return
+                self._schedule_peek_show()
+            else:
+                self._cancel_peek_show()
         except Exception:
             return
         self._start_peek_hover_watch()
 
     def _destroy_peek(self):
         self._stop_peek_hover_watch()
+        self._cancel_peek_show()
         if self._peek is not None:
             try:
                 self._peek.destroy()

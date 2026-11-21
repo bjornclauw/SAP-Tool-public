@@ -1,5 +1,16 @@
 # SAP Work Order Tool
 
+## 2026.11.21.1 — 2026-11-21
+
+- The update window shows what an update contains and can restore the version you updated from.
+- Choose which tool windows appear from Settings; turning SAP Import off also removes its BCsys counter and status from the toolbar.
+- A BCsys outage no longer freezes the toolbar. The indicator says "BCsys unreachable" and retries on click, then resumes the normal check.
+- Print Orders stays responsive while it builds PDFs from large photo attachments.
+- The docked toolbar keeps its size when a helper window moves to another screen, and waits a second on hover before unfolding.
+- Print Orders opens in the right mode: an order already open in IW32 shows its details instead of the list; otherwise the IW38 list opens.
+- Process Selected, Retry Failed and Merge PDFs appear only when they apply. A run without errors stitches every processed order automatically; after an error nothing is stitched, and the Auto-merge option is gone.
+- Developer toggles (Debug Mode, Debug Console, Fake SAP) are hidden unless Power User is enabled.
+
 ## 2026.11.17.1 — 2026-11-17
 
 - Print Orders now reads SAP list exports in Dutch, French, English and Spanish. Columns are recognised by meaning rather than position or heading, so a different column order or a missing optional column no longer breaks the tool.

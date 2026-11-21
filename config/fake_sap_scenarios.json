@@ -88,7 +88,7 @@
         "Order": "4001234",
         "PlannerGroup": "WP-G",
         "Revision": "R2024-001",
-        "Status": "CLSD",
+        "Status": "CRTD",
         "Type": "PM02"
       },
       {
@@ -99,7 +99,7 @@
         "Order": "4001235",
         "PlannerGroup": "Ex-VERM",
         "Revision": "R2024-002",
-        "Status": "OPEN vrijgegeven CRTD",
+        "Status": "REL",
         "Type": "PM01"
       },
       {
@@ -110,7 +110,7 @@
         "Order": "4001236",
         "PlannerGroup": "WP-G",
         "Revision": "",
-        "Status": "vrijgegeven REL PRT",
+        "Status": "REL",
         "Type": "PM03"
       },
       {
@@ -121,7 +121,7 @@
         "Order": "4001237",
         "PlannerGroup": "Ex-VERM",
         "Revision": "R2024-003",
-        "Status": "vrijgegeven REL",
+        "Status": "REL",
         "Type": "PM02"
       },
       {
@@ -189,7 +189,8 @@
   },
   "defaults": {
     "export": "me5a_pr",
-    "grid": "me5a_pr"
+    "grid": "me5a_pr",
+    "start_transaction": "IW38"
   },
   "flows": {
     "atb_goods_btn": [
@@ -900,6 +901,33 @@
         "kind": "ASSIGN_FROM_METHOD",
         "member": "getCellValue",
         "path": "wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKD/ssubSUB_AUFTRAG:SAPLCOIH:1130/subDVS:SAPLEAMCC_DOC_ALV:0100/cntlDVS_ALV/shellcont/shell"
+      }
+    ],
+    "po_read_iw32_info": [
+      {
+        "kind": "READ_PROPERTY",
+        "member": "text",
+        "path": "wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/txtCAUFVD-AUFNR"
+      },
+      {
+        "kind": "READ_PROPERTY",
+        "member": "text",
+        "path": "wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/subSUB_TEXT:SAPLCOIH:1103/cntlLTEXT/shell"
+      },
+      {
+        "kind": "READ_PROPERTY",
+        "member": "text",
+        "path": "wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/subSUB_KOPF:SAPLCOIH:1102/txtCAUFVD-STTXT"
+      },
+      {
+        "kind": "READ_PROPERTY",
+        "member": "text",
+        "path": "wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKZ/ssubSUB_AUFTRAG:SAPLCOIH:1120/subTERM:SAPLCOIH:7300/ctxtCAUFVD-GSTRP"
+      },
+      {
+        "kind": "READ_PROPERTY",
+        "member": "text",
+        "path": "wnd[0]/usr/subSUB_ALL:SAPLCOIH:3001/ssubSUB_LEVEL:SAPLCOIH:1100/tabsTS_1100/tabpIHKZ/ssubSUB_AUFTRAG:SAPLCOIH:1120/subHEADER:SAPLCOIH:0154/ctxtCAUFVD-VAPLZ"
       }
     ],
     "po_read_open_order": [
