@@ -153,6 +153,7 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             self, settings,
             save_callback=self._save_dock_meta,
             on_decorated=self._set_titlebar_color,
+            on_before_show=self._sync_dock_layout,
         )
 
         self._build_menu()
@@ -784,6 +785,17 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         except tk.TclError:
             pass
 
+    def _sync_dock_layout(self):
+        """Refresh the OPEN tray before the dock measures its show height."""
+        tray = getattr(self, "_apps_tray", None)
+        if tray is None:
+            return
+        self._refresh_open_apps(animate=False)
+        try:
+            self.update_idletasks()
+        except tk.TclError:
+            pass
+
     def _refresh_open_apps(self, animate: bool = True):
         """Show a marker + ✕ only while its helper window is open; unfold
         the tray on first open, collapse it away on last close."""
@@ -1110,7 +1122,16 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
     def _on_tool_destroy(self, event, key: str):
         if event.widget is self.tool_windows.get(key):
             self.tool_windows.pop(key, None)
-            self.after(50, self._refresh_open_apps)
+            try:
+                hidden = self.dock._is_hidden()
+            except Exception:
+                hidden = False
+            if hidden:
+                # Collapse now: a shrink animation inside a withdrawn bar
+                # leaves a stale height for the next show.
+                self._sync_dock_layout()
+            else:
+                self.after(50, self._refresh_open_apps)
 
     def _toggle_dock(self):
         self.dock.apply()

@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.22.1 — 2026-11-22
+
+- The docked toolbar opens at its normal height after the last helper window is closed while it is hidden.
+
 ## 2026.11.21.3 — 2026-11-21
 
 - SAP Import: right-click a row or a selection to upload only those orders to SAP.

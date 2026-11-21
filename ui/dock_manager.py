@@ -78,9 +78,12 @@ def load_logo_image(size: int, master=None):
 
 class DockManager:
     def __init__(self, root: tk.Tk, settings: dict, save_callback=None,
-                 on_decorated=None):
+                 on_decorated=None, on_before_show=None):
         self.root = root
         self._save_callback = save_callback
+        # Called before a show measures the bar, so the owner can bring
+        # packed state (the OPEN helper tray) up to date first.
+        self.on_before_show = on_before_show
         # Called after decorations come back (undock): Windows drops the
         # pywinstyles titlebar color on every overrideredirect toggle, so
         # the owner must re-apply it. SapToolbar passes _set_titlebar_color.
@@ -509,7 +512,28 @@ class DockManager:
         except Exception:
             self._anim_id = None
 
+    def _prepare_show(self):
+        """Let the owner sync packed content before the show measures it.
+
+        The OPEN helper tray is driven by tool-window lifetime, not by dock
+        geometry. If the last helper closed while the bar was hidden, the
+        tray is already gone from pack but the withdrawn window still reports
+        its old height. Refresh the tray, then let Tk recompute the requested
+        size so the slide starts at the right height instead of shrinking
+        once the bar is fully open.
+        """
+        if callable(self.on_before_show):
+            try:
+                self.on_before_show()
+            except Exception:
+                pass
+        try:
+            self.root.update_idletasks()
+        except Exception:
+            pass
+
     def _show_main(self, animate: bool = True, focus: bool = True):
+        self._prepare_show()
         self._cancel_peek_show()
         self._cancel_anim()
         self._destroy_peek()
@@ -535,8 +559,17 @@ class DockManager:
         target = self._parse_geometry(self._saved_geometry or "")
         try:
             self.root.update_idletasks()
-            w = self.root.winfo_width() or self.root.winfo_reqwidth()
-            h = self.root.winfo_height() or self.root.winfo_reqheight()
+            # While hidden, winfo_height still reports the height the bar had
+            # when it withdrew. The packed layout may be shorter now (the OPEN
+            # tray collapsed), so measure the requested size instead.
+            if self.root.winfo_ismapped():
+                w = self.root.winfo_width()
+                h = self.root.winfo_height()
+            else:
+                w = self.root.winfo_reqwidth()
+                h = self.root.winfo_reqheight()
+            w = w or self.root.winfo_reqwidth() or 800
+            h = h or self.root.winfo_reqheight() or 200
             mx, my, mw, _mh = work_area_of(self.root)
         except Exception:
             w, h, mx, my, mw = 800, 200, 0, 0, 1920
