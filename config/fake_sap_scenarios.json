@@ -210,108 +210,108 @@
         "args": "0,\"KNTTP\",\"F\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"EPSTP\",\"\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"TXZ01\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"MENGE\",\"1\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"MEINS\",\"PE\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"ELPEI\",\"D\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"EEIND\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"WGBEZ\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"NAME1\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"LGOBE\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"EKGRP\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"AFNAM\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"FLIEF\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"EKORG\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "kind": "SET_PROPERTY",
         "member": "currentCellColumn",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell",
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell",
         "value": "\"EKORG\""
       },
       {
         "args": null,
         "kind": "CALL_METHOD",
         "member": "pressEnter",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "kind": "SET_PROPERTY",
         "member": "text",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT7/ssubTABSTRIPCONTROL1SUB:SAPLMEVIEWS:1101/subSUB2:SAPLMEACCTVI:0100/subSUB1:SAPLMEACCTVI:1100/ctxtMEACCT1100-SAKTO",
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/subSUB2:SAPLMEGUI:*/tabsREQ_ITEM_DETAIL/tabpTABREQDT7/ssubTABSTRIPCONTROL1SUB:SAPLMEVIEWS:1101/subSUB2:SAPLMEACCTVI:0100/subSUB1:SAPLMEACCTVI:1100/ctxtMEACCT1100-SAKTO",
         "value": "\"*\""
       },
       {
         "kind": "SET_PROPERTY",
         "member": "text",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT7/ssubTABSTRIPCONTROL1SUB:SAPLMEVIEWS:1101/subSUB2:SAPLMEACCTVI:0100/subSUB1:SAPLMEACCTVI:1100/subKONTBLOCK:SAPLKACB:2100/ctxtCOBL-AUFNR",
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/subSUB2:SAPLMEGUI:*/tabsREQ_ITEM_DETAIL/tabpTABREQDT7/ssubTABSTRIPCONTROL1SUB:SAPLMEVIEWS:1101/subSUB2:SAPLMEACCTVI:0100/subSUB1:SAPLMEACCTVI:1100/subKONTBLOCK:SAPLKACB:2100/ctxtCOBL-AUFNR",
         "value": "\"*\""
       },
       {
@@ -348,127 +348,127 @@
         "args": "0,\"KNTTP\",\"F\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"EPSTP\",\"D\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"TXZ01\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"MENGE\",\"1\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"MEINS\",\"PE\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"ELPEI\",\"D\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"EEIND\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"WGBEZ\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"NAME1\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"LGOBE\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"EKGRP\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"AFNAM\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"LIFNR\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"FLIEF\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "args": "0,\"EKORG\",\"*\"",
         "kind": "CALL_METHOD",
         "member": "modifyCell",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "kind": "SET_PROPERTY",
         "member": "currentCellColumn",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell",
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell",
         "value": "\"EKORG\""
       },
       {
         "args": null,
         "kind": "CALL_METHOD",
         "member": "pressEnter",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0013/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/cntlGRIDCONTROL/shellcont/shell"
       },
       {
         "kind": "SET_PROPERTY",
         "member": "text",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT1/ssubTABSTRIPCONTROL1SUB:SAPLMEGUI:1328/subSUB0:SAPLMLSP:0400/tblSAPLMLSPTC_VIEW/txtESLL-KTEXT1[3,0]",
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/subSUB2:SAPLMEGUI:*/tabsREQ_ITEM_DETAIL/tabpTABREQDT1/ssubTABSTRIPCONTROL1SUB:SAPLMEGUI:*/subSUB0:SAPLMLSP:0400/tblSAPLMLSPTC_VIEW/txtESLL-KTEXT1[3,0]",
         "value": "\"*\""
       },
       {
         "kind": "SET_PROPERTY",
         "member": "text",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT1/ssubTABSTRIPCONTROL1SUB:SAPLMEGUI:1328/subSUB0:SAPLMLSP:0400/tblSAPLMLSPTC_VIEW/txtESLL-MENGE[4,0]",
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/subSUB2:SAPLMEGUI:*/tabsREQ_ITEM_DETAIL/tabpTABREQDT1/ssubTABSTRIPCONTROL1SUB:SAPLMEGUI:*/subSUB0:SAPLMLSP:0400/tblSAPLMLSPTC_VIEW/txtESLL-MENGE[4,0]",
         "value": "\"1\""
       },
       {
         "kind": "SET_PROPERTY",
         "member": "text",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT1/ssubTABSTRIPCONTROL1SUB:SAPLMEGUI:1328/subSUB0:SAPLMLSP:0400/tblSAPLMLSPTC_VIEW/ctxtESLL-MEINS[5,0]",
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/subSUB2:SAPLMEGUI:*/tabsREQ_ITEM_DETAIL/tabpTABREQDT1/ssubTABSTRIPCONTROL1SUB:SAPLMEGUI:*/subSUB0:SAPLMLSP:0400/tblSAPLMLSPTC_VIEW/ctxtESLL-MEINS[5,0]",
         "value": "\"PE\""
       },
       {
         "args": null,
         "kind": "CALL_METHOD",
         "member": "select",
-        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT4"
+        "path": "wnd[0]/usr/subSUB0:SAPLMEGUI:*/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:*/subSUB2:SAPLMEGUI:*/tabsREQ_ITEM_DETAIL/tabpTABREQDT4"
       },
       {
         "kind": "SET_PROPERTY",
@@ -1136,7 +1136,7 @@
       {
         "kind": "SET_PROPERTY",
         "member": "text",
-        "path": "wnd[1]/usr/subSUB0:SAPLMEGUI:0003/ctxtMEPO_SELECT-BANFN",
+        "path": "wnd[1]/usr/subSUB0:SAPLMEGUI:*/ctxtMEPO_SELECT-BANFN",
         "value": "*"
       },
       {
@@ -1968,6 +1968,16 @@
       }
     ]
   },
+  "screens": [
+    "wnd[0]/usr/subSUB0:SAPLMEGUI:0016/subSUB2:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:3212/cntlGRIDCONTROL/shellcont/shell",
+    "wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT1/ssubTABSTRIPCONTROL1SUB:SAPLMEGUI:1328/subSUB0:SAPLMLSP:0400/tblSAPLMLSPTC_VIEW/ctxtESLL-MEINS[5,0]",
+    "wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT1/ssubTABSTRIPCONTROL1SUB:SAPLMEGUI:1328/subSUB0:SAPLMLSP:0400/tblSAPLMLSPTC_VIEW/txtESLL-KTEXT1[3,0]",
+    "wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT1/ssubTABSTRIPCONTROL1SUB:SAPLMEGUI:1328/subSUB0:SAPLMLSP:0400/tblSAPLMLSPTC_VIEW/txtESLL-MENGE[4,0]",
+    "wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT4",
+    "wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT7/ssubTABSTRIPCONTROL1SUB:SAPLMEVIEWS:1101/subSUB2:SAPLMEACCTVI:0100/subSUB1:SAPLMEACCTVI:1100/ctxtMEACCT1100-SAKTO",
+    "wnd[0]/usr/subSUB0:SAPLMEGUI:0019/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:3303/tabsREQ_ITEM_DETAIL/tabpTABREQDT7/ssubTABSTRIPCONTROL1SUB:SAPLMEVIEWS:1101/subSUB2:SAPLMEACCTVI:0100/subSUB1:SAPLMEACCTVI:1100/subKONTBLOCK:SAPLKACB:2100/ctxtCOBL-AUFNR",
+    "wnd[1]/usr/subSUB0:SAPLMEGUI:0003/ctxtMEPO_SELECT-BANFN"
+  ],
   "transactions": {
     "IW21": {
       "export": "me5a_pr",

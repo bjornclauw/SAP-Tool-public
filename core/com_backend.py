@@ -21,7 +21,15 @@ import gc
 import logging
 from typing import Any
 
+from core.sap_paths import resolve_path
+
 logger = logging.getLogger("sap_backend")
+
+# Methods that can change the screen below the current element. A cached
+# wildcard resolution is not valid across them.
+_NAVIGATING_METHODS = frozenset({
+    "sendvkey", "press", "pressenter", "select", "maximize", "close",
+})
 
 
 class SapBackend:
@@ -70,6 +78,9 @@ class RealSapBackend(SapBackend):
         self._connection = None
         self._sap_gui_auto = None
         self._application = None
+        # Wildcard path -> concrete path for the current screen. Cleared on
+        # every navigation so it can never point at a screen that is gone.
+        self._resolved_paths: dict[str, str] = {}
 
     def connect(self) -> bool:
         if self._app_factory is not None:
@@ -83,6 +94,7 @@ class RealSapBackend(SapBackend):
             self._connection = self._application.Children(0)
             self._session = self._connection.Children(0)
             self._connected = True
+            self._resolved_paths.clear()
             logger.info("Fake SAP connected")
             return True
         except Exception as exc:  # noqa: BLE001 -- the fake must never crash the app
@@ -111,6 +123,7 @@ class RealSapBackend(SapBackend):
             self._connection = self._application.Children(0)
             self._session = self._connection.Children(0)
             self._connected = True
+            self._resolved_paths.clear()
             logger.info("SAP attached via COM")
             return True
         except Exception as exc:  # pragma: no cover -- depends on a live SAP GUI session
@@ -129,17 +142,64 @@ class RealSapBackend(SapBackend):
     def _find(self, path: str):
         if self._session is None:
             raise RuntimeError("Not connected to SAP GUI")
-        return self._session.findById(path)
+        if "*" not in path:
+            return self._session.findById(path)
+
+        resolved = self._resolved_paths.get(path)
+        if resolved is None:
+            resolved = resolve_path(
+                path,
+                find_exact=self._session.findById,
+                child_names=self._child_names,
+            )
+            self._resolved_paths[path] = resolved
+        return self._session.findById(resolved)
+
+    def _child_names(self, path: str) -> list[str]:
+        """Return the immediate child names of a container, for ``*`` lookup."""
+        if self._session is None:
+            raise RuntimeError("Not connected to SAP GUI")
+        children = self._session.findById(path).Children
+        try:
+            count = int(children.Count)
+        except TypeError:  # some COM collections expose Count as a method
+            count = int(children.Count())
+
+        names: list[str] = []
+        for index in range(count):
+            try:
+                child = children(index)
+            except TypeError:  # ... and Index access through Item()
+                child = children.Item(index)
+            name = ""
+            for attribute in ("Name", "Id"):
+                try:
+                    value = getattr(child, attribute)
+                except Exception:
+                    continue
+                if value:
+                    name = str(value).rsplit("/", 1)[-1]
+                    break
+            if name:
+                names.append(name)
+        return names
+
+    def _clear_path_cache(self) -> None:
+        self._resolved_paths.clear()
 
     def set_property(self, path, member, value):
         setattr(self._find(path), member, value)
+        if "okcd" in path.lower():
+            # A new transaction means every resolved screen is stale.
+            self._clear_path_cache()
 
     def call_method(self, path, member, args):
         element = self._find(path)
         method = getattr(element, member)
-        if not args:
-            return method()
-        return method(*args)
+        result = method() if not args else method(*args)
+        if member.lower() in _NAVIGATING_METHODS:
+            self._clear_path_cache()
+        return result
 
     def get_property(self, path, member):
         return getattr(self._find(path), member)
@@ -170,6 +230,7 @@ class RealSapBackend(SapBackend):
         self._session = None
         self._connection = None
         self._connected = False
+        self._resolved_paths.clear()
         if self._app_factory is None:
             self._application = None
             self._sap_gui_auto = None

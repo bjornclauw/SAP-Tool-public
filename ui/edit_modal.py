@@ -18,6 +18,8 @@ from collections.abc import Callable
 from tkinter import ttk
 from typing import Any
 
+from core.sap_paths import wildcard_megui_ids
+
 from . import ui_styles
 from .ui_styles import primary_button, styled_button, styled_entry, styled_frame, styled_label
 
@@ -194,7 +196,22 @@ class EditModal(tk.Toplevel):
         # Script field: multiline, expandable, with scrollbar
         row = styled_frame(self)
         row.pack(fill="both", expand=True, padx=12, pady=8)
-        styled_label(row, "Script:", font=ui_styles.FONTS["header"]).pack(side="top", anchor="w")
+
+        script_header = styled_frame(row)
+        script_header.pack(fill="x")
+        styled_label(script_header, "Script:", font=ui_styles.FONTS["header"]).pack(side="left")
+        styled_button(
+            script_header,
+            "Wildcard MEGUI ids",
+            command=self._wildcard_megui_ids,
+        ).pack(side="right")
+        self._wildcard_hint = styled_label(
+            script_header,
+            "",
+            font=ui_styles.FONTS["small"],
+            fg=ui_styles.COLORS["text_secondary"],
+        )
+        self._wildcard_hint.pack(side="right", padx=(0, 8))
 
         # Create scrollbars and text widget
         scrollbar_y = tk.Scrollbar(row, orient="vertical")
@@ -224,6 +241,21 @@ class EditModal(tk.Toplevel):
         styled_entry(row, textvariable=self.script_name_var).pack(
             side="left", fill="x", expand=True
         )
+
+    def _wildcard_megui_ids(self):
+        """Turn every MEGUI screen number in the script into a wildcard."""
+        text = self.script_text.get("1.0", "end-1c")
+        updated, count = wildcard_megui_ids(text)
+        if not count:
+            self._wildcard_hint.config(text="No MEGUI screen ids found")
+            return
+        top = self.script_text.yview()[0]
+        self.script_text.delete("1.0", "end")
+        self.script_text.insert("1.0", updated)
+        self.script_text.yview_moveto(top)
+        self.script_text.focus_set()
+        self._wildcard_hint.config(
+            text=f"{count} id{'s' if count != 1 else ''} wildcarded")
 
     def _build_textinput_form(self):
         self.var_name_var = tk.StringVar(value=self.data.get("var_name", ""))

@@ -1,5 +1,11 @@
 # SAP Work Order Tool
 
+## 2026.11.21.3 — 2026-11-21
+
+- SAP Import: right-click a row or a selection to upload only those orders to SAP.
+- The purchase-request helper keeps working when SAP changes the screen number behind the ATB form.
+- Power users can wildcard every MEGUI screen id in the script editor with one click.
+
 ## 2026.11.21.2 — 2026-11-21
 
 - The docked toolbar no longer closes the revision dropdown while you choose a value.

@@ -743,13 +743,15 @@ class SapImportWindow(BaseToolWindow):
         """
         return [r for r in self._rows_data if auto_upload_candidate(r)]
 
-    def _send_to_sap(self, auto_mode: bool = False):
+    def _send_to_sap(self, auto_mode: bool = False,
+                     rows: list[dict] | None = None):
         if self._processing:
             return
         if getattr(self, "_fetching", False):
             self.report_status("Still fetching — wait for it to finish", "warning")
             return
-        rows = self._auto_upload_rows() if auto_mode else self._rows_data
+        if rows is None:
+            rows = self._auto_upload_rows() if auto_mode else self._rows_data
         pending = [r for r in rows
                    if str(r.get("Status", "0")) in ITERATED_STATUSES]
         if not pending:
@@ -1139,6 +1141,12 @@ class SapImportWindow(BaseToolWindow):
                        activebackground=ui_styles.COLORS["primary"],
                        activeforeground="#ffffff")
         status = row_dict.get("Status", "0")
+        if str(status) in ITERATED_STATUSES:
+            menu.add_command(
+                label="\u25b6 Upload this order to SAP",
+                state="disabled" if self._processing else "normal",
+                command=lambda r=row_dict: self._send_to_sap(rows=[r]))
+            menu.add_separator()
         if has_failure(row_dict):
             menu.add_command(
                 label="\u26a0 Show error detail",
@@ -1190,6 +1198,20 @@ class SapImportWindow(BaseToolWindow):
                        activebackground=ui_styles.COLORS["primary"],
                        activeforeground="#ffffff")
         menu.add_command(label=f"Bulk edit {len(rows)} row(s)", state="disabled")
+        menu.add_separator()
+
+        uploadable = [
+            r for r in rows
+            if str(r.get("Status", "0")) in ITERATED_STATUSES
+        ]
+        if uploadable:
+            menu.add_command(
+                label=f"\u25b6 Upload {len(uploadable)} selected order(s) to SAP",
+                state="disabled" if self._processing else "normal",
+                command=lambda r=uploadable: self._send_to_sap(rows=r))
+        else:
+            menu.add_command(
+                label="\u25b6 Upload selected to SAP", state="disabled")
         menu.add_separator()
 
         options = load_options()

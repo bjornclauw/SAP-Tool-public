@@ -24,6 +24,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from core.sap_paths import resolve_path
+
 # COM-shaped method names (Children/Info/Busy/findById) must stay as-is.
 # ruff: noqa: N802
 
@@ -140,6 +142,9 @@ class FakeSession:
         self._upload_filename: str | None = None
         self._info = FakeInfo(self)
         self._elements: dict[str, FakeElement] = {}
+        # Concrete screen paths for wildcard resolution. Empty means "not
+        # modelled", in which case wildcards cannot resolve.
+        self._screen_paths = [str(p) for p in self._scenario.get("screens", [])]
 
     # -- object graph -----------------------------------------------------
     @property
@@ -151,6 +156,13 @@ class FakeSession:
         return False
 
     def findById(self, path: str) -> FakeElement:
+        if "*" in path:
+            path = resolve_path(path, self.findById, self._child_names)
+        if (self._screen_paths and "SAPLMEGUI:" in path
+                and not self._known_screen_path(path)):
+            # The concrete PR tree is modelled, so a candidate branch that is
+            # not in it must fail just like real COM would.
+            raise FakeComError(f"Control not found: {path}")
         if self._path_absent(path):
             raise FakeComError(f"Control not found: {path}")
         element = self._elements.get(path)
@@ -158,6 +170,27 @@ class FakeSession:
             element = FakeElement(self, path)
             self._elements[path] = element
         return element
+
+    def child_paths(self, path: str) -> list[tuple[str, str]]:
+        """Immediate ``(name, id)`` children of a container in the PR tree."""
+        prefix = path.rstrip("/") + "/"
+        children: dict[str, str] = {}
+        for screen_path in self._screen_paths:
+            if not screen_path.startswith(prefix):
+                continue
+            name = screen_path[len(prefix):].split("/", 1)[0]
+            if name:
+                children.setdefault(name, prefix + name)
+        return sorted(children.items())
+
+    def _child_names(self, path: str) -> list[str]:
+        return [name for name, _ in self.child_paths(path)]
+
+    def _known_screen_path(self, path: str) -> bool:
+        if path in self._screen_paths:
+            return True
+        prefix = path.rstrip("/") + "/"
+        return any(p.startswith(prefix) for p in self._screen_paths)
 
     # -- writes -----------------------------------------------------------
     def write_property(self, path: str, member: str, value: Any) -> None:
@@ -319,6 +352,32 @@ class FakeSession:
         return False
 
 
+class FakeChild:
+    """One entry in a fake ``Children`` collection."""
+
+    def __init__(self, name: str, path: str):
+        self.Name = name
+        self.Id = path
+
+
+class FakeChildren:
+    """COM-shaped collection: ``.Count`` plus ``collection(i)`` / ``.Item(i)``."""
+
+    def __init__(self, children: list[tuple[str, str]]):
+        self._children = children
+
+    @property
+    def Count(self) -> int:
+        return len(self._children)
+
+    def __call__(self, index: int) -> FakeChild:
+        name, path = self._children[index]
+        return FakeChild(name, path)
+
+    def Item(self, index: int) -> FakeChild:
+        return self(index)
+
+
 class FakeElement:
     """A dynamically-resolved SAP control.
 
@@ -330,6 +389,10 @@ class FakeElement:
     def __init__(self, session: FakeSession, path: str):
         object.__setattr__(self, "_session", session)
         object.__setattr__(self, "_path", path)
+
+    @property
+    def Children(self) -> FakeChildren:
+        return FakeChildren(self._session.child_paths(self._path))
 
     def __getattr__(self, member: str) -> Any:
         if member.startswith("_"):
