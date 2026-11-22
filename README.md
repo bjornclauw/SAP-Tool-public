@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.22.3 — 2026-11-22
+
+- The toolbar's week indicator now follows the clock when the app stays open into a new week.
+
 ## 2026.11.22.2 — 2026-11-22
 
 - Settings has a new layout: General, Tool windows, Advanced and Update.

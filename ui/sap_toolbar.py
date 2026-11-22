@@ -50,6 +50,9 @@ SHORTCUT_BUTTONS = [
 # values get hardened to the digit run (see sanitize_sap_number).
 # Revisie (toolbar_qo3) is a free code -- leaders/whitespace stripped only.
 SAP_NUMBER_FIELDS = {"toolbar_qo1", "toolbar_qo2"}
+# The toolbar can stay open for weeks, so re-read the ISO week hourly; the
+# label must not keep the week the app happened to start in.
+WEEK_REFRESH_MS = 60 * 60 * 1000
 OPEN_APPS = [
     ("purchase_request", "PRH", "_open_purchase_request"),
     ("print_orders", "Print", "_open_print_orders"),
@@ -928,6 +931,47 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         from tools.sap_import.week_popup import WeekRevisionPopup
         WeekRevisionPopup(self)
 
+    @staticmethod
+    def _week_text(now=None) -> str:
+        """``Wnn · yyyy`` for ``now`` (default: the current moment)."""
+        try:
+            from datetime import datetime
+            iso_y, iso_w, _ = (now or datetime.now()).isocalendar()
+            return f"W{iso_w:02d} · {iso_y}"
+        except Exception:
+            return ""
+
+    def _refresh_week_label(self, now=None):
+        """Re-read the ISO week and keep one hourly refresh armed."""
+        text = self._week_text(now)
+        try:
+            if text and self.week_label.cget("text") != text:
+                self.week_label.config(text=text)
+        except tk.TclError:
+            return
+        self._schedule_week_refresh()
+
+    def _schedule_week_refresh(self):
+        if self._week_refresh_id is not None:
+            return
+        try:
+            self._week_refresh_id = self.after(
+                WEEK_REFRESH_MS, self._week_refresh_tick)
+        except tk.TclError:
+            self._week_refresh_id = None
+
+    def _week_refresh_tick(self):
+        self._week_refresh_id = None
+        self._refresh_week_label()
+
+    def _stop_week_refresh(self):
+        if getattr(self, "_week_refresh_id", None) is not None:
+            try:
+                self.after_cancel(self._week_refresh_id)
+            except tk.TclError:
+                pass
+            self._week_refresh_id = None
+
     def _build_status_bar(self):
         # Status bar with sunken border — now with SAP Import counter on the right of status.
         # Pinned to the bottom: the open-helper tray packs above it, never below.
@@ -958,20 +1002,17 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         self._import_counter = ImportCounter(ImportApiClient(auth=auth))
         self._import_counter.on_change = self._on_import_counter_changed
         self._start_import_counter()
-        # Week number — always visible in main UI
-        try:
-            from datetime import datetime
-            iso_y, iso_w, _ = datetime.now().isocalendar()
-            wk_txt = f"W{iso_w:02d} · {iso_y}"
-        except Exception:
-            wk_txt = ""
+        # Week number — always visible in main UI, refreshed hourly so a
+        # toolbar left open across a week boundary follows the clock.
+        self._week_refresh_id = None
         self.week_label = styled_label(
-            bar, wk_txt, anchor="e", font=(ui_styles.FONTS["body"][0], 8, "bold"),
+            bar, self._week_text(), anchor="e", font=(ui_styles.FONTS["body"][0], 8, "bold"),
             fg="#004085", bg="#e8f4f8",
         )
         self.week_label.pack(side="right", padx=(8, 0))
         self.week_label.config(cursor="hand2")
         self.week_label.bind("<Button-1>", lambda e: self._open_week_popup())
+        self._refresh_week_label()
         self.connection_label = styled_label(
             bar,
             "\u25cf Disconnected",
@@ -1386,6 +1427,7 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         self._close_helper_menu()
         self._stop_polling()
         self._stop_sap_activity()
+        self._stop_week_refresh()
         try:
             self._cancel_tray_anim()
         except Exception:
