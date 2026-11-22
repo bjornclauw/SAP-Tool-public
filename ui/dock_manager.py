@@ -668,6 +668,8 @@ class DockManager:
                 try:
                     if not child.winfo_ismapped():
                         continue
+                    if getattr(child, "_dock_hold", False):
+                        return True
                     if str(child.transient()) == str(self.root):
                         return True
                 except tk.TclError:

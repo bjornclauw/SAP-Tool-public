@@ -336,29 +336,17 @@ class SapImportWindow(BaseToolWindow):
         self._sync_auto_switch()
 
     def _build_menu_bar(self):
-        # The settings the old form row held: bound to the engine variables,
-        # exposed here instead of as free-text entries above the grid.
-        self._pg_var = self.bind_entry("si_pg")
+        # Upload pictures stays an import choice; the planner group and SAP
+        # system are setup values and now live in Settings.
         self._upload_pics_var = self.bind_entry("si_upload_pics")
-        self._system_var = self.bind_entry("si_system")
-        # Per-machine overrides live outside the tracked config.
         saved = user_settings.load_user_settings()
-        for key, var in (("si_pg", self._pg_var),
-                         ("si_upload_pics", self._upload_pics_var),
-                         ("si_system", self._system_var)):
-            value = saved.get(key)
-            if value:
-                var.set(value)
-        pg_items = [
-            MenuBarItem(value, variable=self._pg_var, onvalue=value, radiobutton=True)
-            for value in load_options().get("PG", [])
-        ]
+        value = saved.get("si_upload_pics")
+        if value:
+            self._upload_pics_var.set(value)
         self.menu_bar = CustomMenuBar(self, height=28)
         self.menu_bar.add_menu("Settings", [
-            MenuBarItem("Planner group", children=pg_items),
             MenuBarItem("Upload pictures", variable=self._upload_pics_var,
                         onvalue="YES", offvalue="NO"),
-            MenuBarItem("SAP system\u2026", self._edit_system),
             MenuBarItem("", separator=True),
             MenuBarItem("Columns\u2026", self._configure_columns),
             MenuBarItem("Dropdown values\u2026", self._open_options_popup),
@@ -376,26 +364,19 @@ class SapImportWindow(BaseToolWindow):
 
     def _current_settings(self) -> dict[str, str]:
         return {
-            "si_pg": self._pg_var.get(),
             "si_upload_pics": self._upload_pics_var.get(),
-            "si_system": self._system_var.get(),
         }
 
     def _persist_settings(self):
-        """Write the three user settings back, but only when they changed.
+        """Write the upload-pictures choice back when it changed.
 
-        Auto upload and auto-assign stay session-only; these three are setup,
-        not run state, so they survive a restart.
+        Planner group and SAP system moved to Settings and are stored there;
+        auto upload and auto-assign stay session-only.
         """
         try:
             current = self._current_settings()
         except tk.TclError:
             return
-        # Validate before writing: planner group and system may not be blank,
-        # and upload pictures is a yes/no choice.
-        for key in ("si_pg", "si_system"):
-            value = current[key].strip()
-            current[key] = value or self._saved_settings[key]
         current["si_upload_pics"] = (
             "YES" if current["si_upload_pics"].strip().upper() == "YES" else "NO")
         if current == self._saved_settings:
@@ -406,13 +387,10 @@ class SapImportWindow(BaseToolWindow):
         except Exception:
             pass
 
-    def _edit_system(self):
-        from tkinter import simpledialog
-        value = simpledialog.askstring("SAP system", "SAP system:",
-                                       initialvalue=self._system_var.get(),
-                                       parent=self)
-        if value is not None:
-            self._system_var.set(value.strip())
+    def _planner_group(self) -> str:
+        """The planner group used when fetching the work-order list."""
+        value = str(user_settings.load_user_settings().get("si_pg", ""))
+        return value.strip() or "WP1"
 
     def _sync_auto_switch(self):
         """Paint the Auto upload marker button from the current state."""
@@ -622,7 +600,7 @@ class SapImportWindow(BaseToolWindow):
             return
 
         self.report_status("Fetching new imports...", "info")
-        pg = self.engine.get_variable("si_pg") or "WP1"
+        pg = self._planner_group()
 
         # Share the fetch guard with the toolbar's counter poll and record the
         # response so the poll reuses it instead of making a second request.

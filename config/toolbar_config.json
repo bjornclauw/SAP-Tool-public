@@ -403,7 +403,7 @@
       },
       "si_pg": {
         "var_name": "si_pg",
-        "default_value": "WP1"
+        "default_value": ""
       },
       "si_upload_pics": {
         "var_name": "si_upload_pics",

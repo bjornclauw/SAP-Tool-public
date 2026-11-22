@@ -28,7 +28,7 @@ DEFAULTS: dict[str, object] = {
     # Tool-window UI language: "auto" follows the Windows UI language.
     "ui_language": "auto",
     # SAP Import setup, seeded from config/textinput on a fresh install.
-    "si_pg": "WP1",
+    "si_pg": "",
     "si_system": "PRD400",
     "si_upload_pics": "YES",
     # Print Orders behaviour (per-machine).

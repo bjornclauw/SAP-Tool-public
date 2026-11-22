@@ -1,5 +1,14 @@
 # SAP Work Order Tool
 
+## 2026.11.22.2 — 2026-11-22
+
+- Settings has a new layout: General, Tool windows, Advanced and Update.
+- The Tool windows tab shows a screenshot and description for each tool, with one Enable switch and an Open now button.
+- Updates now happen on an Update tab inside Settings; the separate update window is gone.
+- The SAP Import planner group and SAP system are set in Settings; the Import window no longer duplicates them.
+- The main toolbar's Tools and Settings menus are replaced by a Helpers card, opened from a button on both the docked and undocked toolbar.
+- Dock top and Auto-hide are no longer in Settings; double-click the logo to dock or undock.
+
 ## 2026.11.22.1 — 2026-11-22
 
 - The docked toolbar opens at its normal height after the last helper window is closed while it is hidden.

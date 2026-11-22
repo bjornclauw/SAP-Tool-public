@@ -25,7 +25,6 @@ from core.sap_worker import SapWorker
 from tools.sap_import.models import FAILED_STATUSES, FINISHED_STATUSES, PENDING_STATUSES
 
 from . import ui_styles
-from .custom_menu import CustomMenuBar, MenuBarItem
 from .custom_widgets import CustomButton, CustomEntry, CustomLabel, ScriptRunnerMixin, _get_config
 from .debugger import DebuggerWindow
 from .dock_manager import DockManager, load_logo_image
@@ -35,11 +34,6 @@ from .ui_styles import (
     styled_frame,
     styled_label,
     styled_status_bar,
-)
-from .window_chrome import (
-    apply_titlebar_color,
-    center_on_toolbar,
-    correct_for_decorations,
 )
 
 QUICK_OPEN_GROUPS = [
@@ -52,18 +46,6 @@ SHORTCUT_BUTTONS = [
     "toolbar_sc5", "toolbar_sc6",
 ]
 
-# Docked-mode helper rail: (tool key, badge, label, opener method, colour).
-HELPER_RAIL_ITEMS = [
-    ("purchase_request", "PR", "Purchase Request",
-     "_open_purchase_request", ui_styles.TOOL_COLORS["purchase_request"]),
-    ("print_orders", "PO", "Print Orders",
-     "_open_print_orders", ui_styles.TOOL_COLORS["print_orders"]),
-    ("sap_import", "SI", "SAP Import",
-     "_open_sap_import", ui_styles.TOOL_COLORS["sap_import"]),
-    ("revisions", "RR", "Revisions",
-     "_open_revisions_register", ui_styles.SUPPORT_COLOR),
-]
-HELPER_RAIL_WIDTH = 156
 # Quick-open fields holding SAP numbers (werkorder, melding): pasted
 # values get hardened to the digit run (see sanitize_sap_number).
 # Revisie (toolbar_qo3) is a free code -- leaders/whitespace stripped only.
@@ -143,6 +125,7 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
 
         self.debugger_window: DebuggerWindow | None = None
         self.tool_windows: dict[str, tk.Toplevel] = {}
+        self._helper_menu = None
         self._widget_registry: dict[str, tk.Widget] = {}  # Maps component_id -> widget
         self._poll_id = None  # for after() polling
         self._import_poll_running = False
@@ -156,19 +139,14 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             on_before_show=self._sync_dock_layout,
         )
 
-        self._build_menu()
         self._build_quick_open_row()
         self._build_shortcuts_row()
         self._build_apps_tray()
-        self._build_helper_rail()
         self._build_status_bar()
 
         self._set_app_icon()  # logo as window/taskbar icon, then reveal
         self._set_titlebar_color()  # Apply pywinstyles color, then reveal
         self.deiconify()
-        self.dock.dock_enabled.trace_add(
-            "write", lambda *_: self._apply_chrome_layout())
-        self._apply_chrome_layout()
         self.dock.apply()  # snap to top if dock was persisted
 
         self._start_polling()
@@ -216,36 +194,53 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         )
         self._quick_open_row = row
 
-        # Docked-mode helper drawer toggle (hidden while undocked).
+        # Helper launcher: available on both the docked and undocked toolbar.
+        # The slot matches the 28 px logo beside it, so the icon is not a
+        # tiny text button next to a larger image.
+        helper_slot = tk.Frame(
+            row, width=28, height=28,
+            bg=ui_styles.COLORS["surface"],
+        )
+        helper_slot.pack(
+            side="left", anchor="s",
+            padx=(0, ui_styles.SPACING["tight"]),
+            pady=(ui_styles.SPACING["tight"], ui_styles.SPACING["tight"]),
+        )
+        helper_slot.pack_propagate(False)
         self._helper_toggle = tk.Button(
-            row,
+            helper_slot,
             text="☰",
-            font=ui_styles.FONTS["header"],
+            font=(ui_styles.FONTS["header"][0], 12),
             bg=ui_styles.COLORS["surface"],
             fg=ui_styles.COLORS["text"],
             activebackground=ui_styles.COLORS["surface_hover"],
             activeforeground=ui_styles.COLORS["text"],
             relief="flat", bd=0, highlightthickness=0,
-            padx=4, pady=0, cursor="hand2",
-            command=self._toggle_helper_rail,
+            padx=0, pady=0, cursor="hand2",
+            command=self._toggle_helper_menu,
         )
+        self._helper_toggle.pack(fill="both", expand=True)
 
         # Brand home: the logo fronts the quick-open row, left of the
         # Werkorder field, and parents the open-helper tray -- the tray
         # unfolds beneath the shortcuts card, and the logo pulses as it
         # opens/closes.
         logo_img = load_logo_image(28, master=row)
+        # No label border: Tk's default 1 px border made the logo label 32 px
+        # tall against the helper's 28 px slot, which pushed the hamburger a
+        # couple of pixels lower than the logo.
         if logo_img is not None:
             self._logo_img = logo_img  # hold a ref while shown
             logo = tk.Label(
                 row, image=logo_img, bg=ui_styles.COLORS["bg"], cursor="hand2",
+                bd=0, highlightthickness=0, padx=0, pady=0,
             )
         else:
             self._logo_img = None
             logo = tk.Label(
                 row, text="BC", font=ui_styles.FONTS["header"],
                 bg=ui_styles.COLORS["bg"], fg=ui_styles.COLORS["primary"],
-                cursor="hand2",
+                cursor="hand2", bd=0, highlightthickness=0, padx=0, pady=0,
             )
         logo.pack(side="left", anchor="s",
                   padx=(0, ui_styles.SPACING["comfortable"]),
@@ -432,311 +427,59 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         self._refresh_open_apps(animate=False)
 
     # ---- docked helper rail --------------------------------------------
-    def _build_helper_rail(self):
-        self._helper_rail_visible = False
-        self._helper_rail_rows: dict[str, tk.Frame] = {}
-        self._helper_rail = tk.Frame(
-            self,
-            bg=ui_styles.COLORS["surface"],
-            highlightthickness=1,
-            highlightbackground=ui_styles.COLORS["border_dark"],
-        )
-        header = tk.Frame(self._helper_rail, bg=ui_styles.COLORS["surface"])
-        header.pack(fill="x", padx=8, pady=(6, 4))
-        tk.Label(
-            header, text="Helpers", font=ui_styles.FONTS["header"],
-            bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"],
-            anchor="w",
-        ).pack(side="left")
-        tk.Button(
-            header, text="×", command=self._close_helper_rail,
-            font=ui_styles.FONTS["body"],
-            bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text_secondary"],
-            activebackground=ui_styles.COLORS["surface_hover"],
-            activeforeground=ui_styles.COLORS["error"],
-            relief="flat", bd=0, highlightthickness=0,
-            width=2, cursor="hand2",
-        ).pack(side="right")
+    def _toggle_helper_menu(self):
+        if self._helper_menu is not None:
+            self._close_helper_menu()
+            return
+        from .helper_menu import HelperMenu
 
-        for _key, badge, label, opener, color in HELPER_RAIL_ITEMS:
-            if _key not in self._tools_enabled:
-                continue
-            row = tk.Frame(
-                self._helper_rail, bg=ui_styles.COLORS["surface"],
-                cursor="hand2")
-            row.pack(fill="x", padx=6, pady=1)
-            self._helper_rail_rows[_key] = row
-            badge_lbl = tk.Label(
-                row, text=badge, bg=color, fg="#ffffff",
-                font=(ui_styles.FONTS["body"][0], 8, "bold"),
-                width=3, padx=2, pady=1,
-            )
-            badge_lbl.pack(side="left", padx=(0, 6))
-            text_lbl = tk.Label(
-                row, text=label, anchor="w", font=ui_styles.FONTS["body"],
-                bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"],
-            )
-            text_lbl.pack(side="left", fill="x", expand=True)
-            for widget in (row, badge_lbl, text_lbl):
-                widget.bind(
-                    "<Button-1>", lambda _e, o=opener: self._launch_helper(o))
-                widget.bind(
-                    "<Enter>",
-                    lambda _e, r=row, t=text_lbl: self._hover_helper_row(
-                        r, t, True))
-                widget.bind(
-                    "<Leave>",
-                    lambda _e, r=row, t=text_lbl: self._hover_helper_row(
-                        r, t, False))
+        menu = HelperMenu(self, TOOL_CATALOGUE)
+        if menu.winfo_exists():
+            self._helper_menu = menu
 
-        tk.Frame(
-            self._helper_rail, height=1,
-            bg=ui_styles.COLORS["border"],
-        ).pack(fill="x", padx=8, pady=4)
+    def _close_helper_menu(self):
+        menu = self._helper_menu
+        if menu is not None:
+            try:
+                menu.close()
+            except Exception:
+                pass
+        self._helper_menu = None
+        self._set_helper_toggle_active(False)
 
-        gear = tk.Frame(
-            self._helper_rail, bg=ui_styles.COLORS["surface"], cursor="hand2")
-        gear.pack(fill="x", padx=6, pady=(0, 4))
-        gear_badge = tk.Label(
-            gear, text="⚙", bg=ui_styles.SUPPORT_COLOR, fg="#ffffff",
-            font=(ui_styles.FONTS["body"][0], 8, "bold"),
-            width=3, padx=2, pady=1,
-        )
-        gear_badge.pack(side="left", padx=(0, 6))
-        gear_text = tk.Label(
-            gear, text="Settings", anchor="w", font=ui_styles.FONTS["body"],
-            bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"],
-        )
-        gear_text.pack(side="left", fill="x", expand=True)
-        for widget in (gear, gear_badge, gear_text):
-            widget.bind("<Button-1>", lambda _e: self._open_dock_settings())
-            widget.bind(
-                "<Enter>",
-                lambda _e, r=gear, t=gear_text: self._hover_helper_row(
-                    r, t, True))
-            widget.bind(
-                "<Leave>",
-                lambda _e, r=gear, t=gear_text: self._hover_helper_row(
-                    r, t, False))
-
-        self._helper_rail.place_forget()
-        if not getattr(self, "_helper_rail_bound", False):
-            self.bind("<Escape>", lambda _e: self._close_helper_rail(), "+")
-            self.bind("<Unmap>", lambda _e: self._close_helper_rail(), "+")
-            self._helper_rail_bound = True
-
-    def _rebuild_helper_rail(self):
-        """Rebuild the rail after the tool-window catalogue changed."""
-        was_visible = bool(getattr(self, "_helper_rail_visible", False))
+    def _set_helper_toggle_active(self, active: bool):
         try:
-            self._helper_rail.destroy()
-        except Exception:
-            pass
-        self._build_helper_rail()
-        if was_visible and self.dock.dock_enabled.get():
-            self._open_helper_rail()
-
-    def _hover_helper_row(self, row, label, active):
-        bg = (ui_styles.COLORS["surface_hover"] if active
-              else ui_styles.COLORS["surface"])
-        try:
-            row.configure(bg=bg)
-            label.configure(bg=bg)
+            self._helper_toggle.configure(
+                bg=(ui_styles.COLORS["primary"] if active
+                    else ui_styles.COLORS["surface"]),
+                fg=("#ffffff" if active else ui_styles.COLORS["text"]),
+                activebackground=(ui_styles.COLORS["primary_hover"]
+                                  if active
+                                  else ui_styles.COLORS["surface_hover"]),
+                activeforeground=("#ffffff" if active
+                                  else ui_styles.COLORS["text"]),
+            )
         except tk.TclError:
             pass
 
-    def _apply_chrome_layout(self):
-        if not hasattr(self, "_helper_toggle") or not hasattr(self, "menu_bar"):
-            return
-        docked = bool(self.dock.dock_enabled.get())
-        if docked:
-            if self.menu_bar.frame.winfo_manager():
-                self.menu_bar.frame.pack_forget()
-            if not self._helper_toggle.winfo_manager():
-                self._helper_toggle.pack(
-                    side="left", anchor="s", before=self._logo_label,
-                    padx=(0, ui_styles.SPACING["tight"]),
-                    pady=(0, ui_styles.SPACING["tight"]))
-        else:
-            self._close_helper_rail()
-            if self._helper_toggle.winfo_manager():
-                self._helper_toggle.pack_forget()
-            if not self.menu_bar.frame.winfo_manager():
-                self.menu_bar.frame.pack(
-                    side="top", fill="x", before=self._quick_open_row)
-        self.update_idletasks()
-
-    def _toggle_helper_rail(self):
-        if self._helper_rail_visible:
-            self._close_helper_rail()
-        else:
-            self._open_helper_rail()
-
-    def _open_helper_rail(self):
-        if not self.dock.dock_enabled.get():
-            return
-        self._helper_rail.place(
-            x=0, y=0, width=HELPER_RAIL_WIDTH, relheight=1)
-        self._helper_rail.lift()
-        self._helper_rail_visible = True
-        self._helper_toggle.configure(
-            bg=ui_styles.COLORS["primary"], fg="#ffffff",
-            activebackground=ui_styles.COLORS["primary_hover"],
-            activeforeground="#ffffff")
-
-    def _close_helper_rail(self):
-        if not getattr(self, "_helper_rail", None):
-            return
-        self._helper_rail.place_forget()
-        self._helper_rail_visible = False
-        if hasattr(self, "_helper_toggle"):
-            self._helper_toggle.configure(
-                bg=ui_styles.COLORS["surface"],
-                fg=ui_styles.COLORS["text"],
-                activebackground=ui_styles.COLORS["surface_hover"],
-                activeforeground=ui_styles.COLORS["text"])
-
-    def _launch_helper(self, opener_name):
-        self._close_helper_rail()
-        if opener_name == "_open_revisions_register":
-            self._open_revisions_register()
-            return
-        key = opener_name.removeprefix("_open_")
-        self._focus_or_open(key, opener_name)
+    def _open_settings_tools(self):
+        self._open_dock_settings()
+        win = getattr(self, "_dock_settings_win", None)
+        if win is not None and win.winfo_exists():
+            win.open_tools_tab()
 
     def _open_dock_settings(self):
-        self._close_helper_rail()
+        """Open the Settings helper modal; one instance at a time."""
+        self._close_helper_menu()
         win = getattr(self, "_dock_settings_win", None)
         if win is not None and win.winfo_exists():
             win.deiconify()
             win.lift()
             win.focus_force()
             return
-        win = tk.Toplevel(self)
-        win.withdraw()
-        win.title("Settings")
-        win.resizable(False, False)
-        win.configure(bg=ui_styles.COLORS["bg"])
-        body = styled_frame(win)
-        body.pack(fill="both", expand=True, padx=12, pady=(12, 6))
+        from .settings_window import SettingsWindow
 
-        language_row = styled_frame(body)
-        language_row.pack(fill="x", pady=(0, 6))
-        styled_label(
-            language_row, i18n.t("main.settings.language"),
-            font=ui_styles.FONTS["body"], anchor="w",
-            bg=ui_styles.COLORS["bg"]).pack(side="left")
-        language_codes = [i18n.AUTO_LANGUAGE, *i18n.available_languages()]
-        language_labels = {
-            code: (i18n.t("main.settings.language_auto")
-                   if code == i18n.AUTO_LANGUAGE else i18n.language_label(code))
-            for code in language_codes
-        }
-        current_setting = str(
-            user_settings.load_user_settings().get(
-                "ui_language", i18n.AUTO_LANGUAGE))
-        if current_setting not in language_codes:
-            current_setting = i18n.AUTO_LANGUAGE
-        language_var = tk.StringVar(value=language_labels[current_setting])
-        language_box = ttk.Combobox(
-            language_row, textvariable=language_var, state="readonly",
-            values=[language_labels[code] for code in language_codes],
-            font=ui_styles.FONTS["body"], width=22)
-        language_box.pack(side="right")
-
-        def _on_language_picked(_event=None):
-            selected = language_var.get()
-            code = next(
-                (candidate for candidate, label in language_labels.items()
-                 if label == selected),
-                i18n.AUTO_LANGUAGE)
-            i18n.set_language(code)
-            self._save_user_settings({"ui_language": code})
-            self.report_status(
-                i18n.t("main.settings.language_note"), "info")
-
-        language_box.bind("<<ComboboxSelected>>", _on_language_picked)
-
-        toggles = [("Always on Top", self.always_on_top, self._toggle_always_on_top)]
-        if self.power_user.get():
-            toggles.append(
-                ("Debug Mode", self.debug_mode, self._toggle_debug_mode))
-        toggles.append(("Power User", self.power_user, self._toggle_power_user))
-        if self.power_user.get():
-            toggles.extend([
-                ("Debug Console", self.show_console, self._toggle_console),
-                ("Fake SAP", self.fake_sap, self._toggle_fake),
-            ])
-        toggles.extend([
-            ("Dock top", self.dock.dock_enabled, self._toggle_dock),
-            ("Auto-hide", self.dock.autohide, self._toggle_autohide),
-        ])
-        for text, var, command in toggles:
-            tk.Checkbutton(
-                body, text=text, variable=var, command=command,
-                font=ui_styles.FONTS["body"], anchor="w",
-                bg=ui_styles.COLORS["bg"], fg=ui_styles.COLORS["text"],
-                activebackground=ui_styles.COLORS["bg"],
-                activeforeground=ui_styles.COLORS["text"],
-                selectcolor=ui_styles.COLORS["surface"],
-                highlightthickness=0, bd=0,
-            ).pack(fill="x", pady=1)
-        ttk.Separator(body).pack(fill="x", pady=(8, 4))
-        styled_label(
-            body, "Tool windows", font=ui_styles.FONTS["header"], anchor="w",
-            bg=ui_styles.COLORS["bg"],
-        ).pack(fill="x")
-        tool_vars: dict[str, tk.BooleanVar] = {}
-        for key, _menu, name, description, _default, _opener in TOOL_CATALOGUE:
-            tool_vars[key] = tk.BooleanVar(value=key in self._tools_enabled)
-            tk.Checkbutton(
-                body, text=name, variable=tool_vars[key],
-                command=lambda: self._on_tool_toggled(tool_vars),
-                font=ui_styles.FONTS["body"], anchor="w",
-                bg=ui_styles.COLORS["bg"], fg=ui_styles.COLORS["text"],
-                activebackground=ui_styles.COLORS["bg"],
-                activeforeground=ui_styles.COLORS["text"],
-                selectcolor=ui_styles.COLORS["surface"],
-                highlightthickness=0, bd=0,
-            ).pack(fill="x", pady=(2, 0))
-            styled_label(
-                body, description,
-                font=(ui_styles.FONTS["body"][0], 8), anchor="w",
-                fg=ui_styles.COLORS["text_secondary"],
-                bg=ui_styles.COLORS["bg"],
-            ).pack(fill="x", padx=(24, 0))
-        buttons = styled_frame(win)
-        buttons.pack(fill="x", padx=12, pady=(4, 12))
-        ui_styles.styled_button(
-            buttons, "Check for updates…", command=self._open_update_modal
-        ).pack(side="left")
-        ui_styles.styled_button(
-            buttons, "Quit", command=self._on_close
-        ).pack(side="right")
-        ui_styles.styled_button(
-            buttons, "Close", command=win.destroy
-        ).pack(side="right", padx=(0, 6))
-        win.bind("<Escape>", lambda _e: win.destroy(), "+")
-        self._dock_settings_win = win
-        center_on_toolbar(win, self)
-        win.deiconify()
-        win.lift()
-        win.focus_force()
-        correct_for_decorations(win, self)
-        apply_titlebar_color(win, ui_styles.SUPPORT_COLOR)
-
-    def _discard_settings_window(self, win):
-        try:
-            win.destroy()
-        except tk.TclError:
-            pass
-
-    def _on_tool_toggled(self, tool_vars: dict[str, tk.BooleanVar]):
-        """A catalogue checkbox changed: persist and apply immediately."""
-        chosen = [key for key, _menu, _name, _desc, _default, _opener
-                  in TOOL_CATALOGUE if tool_vars[key].get()]
-        self._apply_enabled_tools(chosen)
-        self.report_status("Tool windows updated", "info")
+        self._dock_settings_win = SettingsWindow(self, TOOL_CATALOGUE)
 
     def _cancel_tray_anim(self):
         self._tray_anim_gen += 1
@@ -1133,17 +876,10 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             else:
                 self.after(50, self._refresh_open_apps)
 
-    def _toggle_dock(self):
-        self.dock.apply()
-
     def _toggle_dock_mode(self):
         """Logo double-click: dock ON = auto-hide + borderless, OFF = normal."""
+        self._close_helper_menu()
         self.dock.set_dock_mode(not self.dock.dock_enabled.get())
-
-    def _toggle_autohide(self):
-        if self.dock.autohide.get():
-            self.dock.dock_enabled.set(True)  # auto-hide implies docked
-        self.dock.apply()
 
     def _save_dock_meta(self):
         self._save_user_settings({
@@ -1168,32 +904,11 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         ordered = [key for key, *_rest in TOOL_CATALOGUE
                    if key in self._tools_enabled]
         self._save_user_settings({"enabled_tools": ordered})
-        self.menu_bar.set_items("Tools", self._tools_menu_items())
-        self._rebuild_helper_rail()
+        self._close_helper_menu()
         for key in list(self.tool_windows):
             if key not in self._tools_enabled:
                 self._close_tool_window(key)
         self._set_import_enabled("sap_import" in self._tools_enabled)
-
-    def _tools_menu_items(self):
-        """Tools entries: user-enabled helpers; the Planner also needs Power
-        User because it is unfinished."""
-        items = []
-        for key, label, _name, _desc, _default, opener in TOOL_CATALOGUE:
-            if key not in self._tools_enabled:
-                continue
-            if key == "planner" and not self.power_user.get():
-                continue
-            items.append(MenuBarItem(label, getattr(self, opener)))
-        return items
-
-    def _build_menu(self):
-        self.menu_bar = CustomMenuBar(self, height=30)
-        self.menu_bar.add_menu("Tools", self._tools_menu_items())
-        self.menu_bar.add_menu("Settings", self._settings_menu_items())
-        self.menu_bar.pack(side="top", fill="x")
-        # Remove default menu
-        self.config(menu=None)
 
     def _open_revisions_register(self):
         from tools.sap_import.week_popup import RevisionsRegisterPopup
@@ -1208,16 +923,6 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         if self._import_window_state() == "running":
             return "Auto upload is running. Pause it before updating."
         return None
-
-    def _open_update_modal(self):
-        from core import updater
-
-        from .update_modal import UpdateWindow
-
-        UpdateWindow.open(
-            self, self._update_blocker, self._on_close,
-            previous_fn=updater.previous_update,
-        )
 
     def _open_week_popup(self):
         from tools.sap_import.week_popup import WeekRevisionPopup
@@ -1604,34 +1309,6 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             self._process_pending_debug_script()
         self._save_meta_value("debug_mode", self.debug_mode.get())
 
-    def _settings_menu_items(self):
-        """Settings entries; developer toggles need Power User."""
-        items = [MenuBarItem("Always on Top", variable=self.always_on_top,
-                             command=self._toggle_always_on_top)]
-        if self.power_user.get():
-            items.append(MenuBarItem("Debug Mode", variable=self.debug_mode,
-                                     command=self._toggle_debug_mode))
-        items.append(MenuBarItem("Power User", variable=self.power_user,
-                                 command=self._toggle_power_user))
-        if self.power_user.get():
-            items.append(MenuBarItem("Debug Console", variable=self.show_console,
-                                     command=self._toggle_console))
-            items.append(MenuBarItem("Fake SAP", variable=self.fake_sap,
-                                     command=self._toggle_fake))
-        items.extend([
-            MenuBarItem("", separator=True),
-            MenuBarItem("Dock top", variable=self.dock.dock_enabled,
-                        command=self._toggle_dock),
-            MenuBarItem("Auto-hide", variable=self.dock.autohide,
-                        command=self._toggle_autohide),
-            MenuBarItem("", separator=True),
-            MenuBarItem("Settings...", command=self._open_dock_settings),
-            MenuBarItem("Check for updates…", command=self._open_update_modal),
-            MenuBarItem("", separator=True),
-            MenuBarItem("Quit", command=self._on_close),
-        ])
-        return items
-
     def _disable_developer_modes(self):
         """Power User is off: leave no hidden dev mode running."""
         if self.fake_sap.get():
@@ -1651,13 +1328,7 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         self._save_meta_value("power_user", self.power_user.get())
         if not self.power_user.get():
             self._disable_developer_modes()
-        self.menu_bar.set_items("Tools", self._tools_menu_items())
-        self.menu_bar.set_items("Settings", self._settings_menu_items())
-        win = getattr(self, "_dock_settings_win", None)
-        if win is not None and win.winfo_exists():
-            self._dock_settings_win = None
-            # Deferred: the toggle may come from a checkbox in that window.
-            self.after(0, lambda w=win: self._discard_settings_window(w))
+        self._close_helper_menu()
         self.report_status(
             "Power User on - tool-window buttons can be right-click edited"
             if self.power_user.get() else "Power User off",
@@ -1712,6 +1383,7 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
 
     def _on_close(self):
         """Clean up worker thread and polling on window close."""
+        self._close_helper_menu()
         self._stop_polling()
         self._stop_sap_activity()
         try:

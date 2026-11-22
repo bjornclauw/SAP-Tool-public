@@ -259,6 +259,7 @@ __all__ = [
     "styled_label",
     "styled_frame",
     "card_frame",
+    "surface_panel",
     "styled_checkbox",
     "styled_text",
     "styled_status_bar",
@@ -334,6 +335,28 @@ def card_frame(master: tk.Misc, **kwargs: Any) -> tk.Frame:
     defaults = FRAME_STYLES["card"].copy()
     defaults.update(kwargs)
     return tk.Frame(master, **defaults)
+
+
+def surface_panel(master: tk.Misc, **kwargs: Any):
+    """A subtle white panel with an inner padded frame.
+
+    Returns ``(outer, inner)`` so callers can grid/pack the outer frame and
+    put content on the inner one. Shared by the Settings tabs so their cards
+    use one border/padding treatment.
+    """
+    defaults = {
+        "bg": COLORS["surface"],
+        "highlightbackground": COLORS["border"],
+        "highlightthickness": 1,
+    }
+    defaults.update(kwargs)
+    outer = tk.Frame(master, **defaults)
+    inner = tk.Frame(outer, bg=COLORS["surface"])
+    inner.pack(
+        fill="both", expand=True,
+        padx=SPACING["comfortable"], pady=SPACING["comfortable"],
+    )
+    return outer, inner
 
 
 # --- Checkbox Helpers ------------------------------------------------------
