@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import tkinter as tk
 
+from core import i18n
+
 from . import ui_styles
 from .monitor import work_area_of
 
@@ -142,13 +144,13 @@ class HelperMenu(tk.Toplevel):
         title = tk.Frame(header, bg=ui_styles.COLORS["surface"])
         title.pack(side="left", fill="x", expand=True)
         tk.Label(
-            title, text="Helpers",
+            title, text=i18n.t("helpers.title", "Helpers"),
             font=(ui_styles.FONTS["header"][0], 12, "bold"),
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"],
             anchor="w",
         ).pack(side="left")
         tk.Label(
-            title, text="Open or focus a tool",
+            title, text=i18n.t("helpers.subtitle", "Open or focus a tool"),
             font=ui_styles.FONTS["small"],
             bg=ui_styles.COLORS["surface"],
             fg=ui_styles.COLORS["text_secondary"],
@@ -179,7 +181,9 @@ class HelperMenu(tk.Toplevel):
         self._build_footer(body)
 
     def _build_tool_row(self, parent, key, label, description):
-        name = _SHORT_NAMES.get(key, label)
+        name = i18n.t(
+            f"tool.{key}.short", _SHORT_NAMES.get(key, label))
+        description = i18n.t(f"tool.{key}.description", description)
         win = self.toolbar.tool_windows.get(key)
         try:
             is_open = win is not None and win.winfo_exists()
@@ -211,7 +215,7 @@ class HelperMenu(tk.Toplevel):
         )
         desc_lbl.pack(fill="x")
         side = tk.Label(
-            row, text="Open" if is_open else "",
+            row, text=i18n.t("helpers.open", "Open") if is_open else "",
             font=ui_styles.FONTS["small"],
             bg=bg, fg=ui_styles.COLORS["text_secondary"],
             padx=ui_styles.SPACING["tight"],
@@ -255,13 +259,14 @@ class HelperMenu(tk.Toplevel):
         )
         gear.pack(side="left")
         settings = tk.Label(
-            footer, text="Settings", font=ui_styles.FONTS["body"],
+            footer, text=i18n.t("settings.title", "Settings"),
+            font=ui_styles.FONTS["body"],
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"],
             anchor="w", cursor="hand2", padx=8,
         )
         settings.pack(side="left", fill="x", expand=True)
         tools = tk.Label(
-            footer, text="Tool windows \u203a",
+            footer, text=i18n.t("helpers.tool_windows", "Tool windows \u203a"),
             font=ui_styles.FONTS["small"],
             bg=ui_styles.COLORS["surface"],
             fg=ui_styles.COLORS["text_secondary"],

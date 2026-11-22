@@ -18,7 +18,7 @@ import tkinter as tk
 from collections.abc import Callable
 from tkinter import ttk
 
-from core import updater
+from core import i18n, updater
 
 from . import ui_styles
 from .ui_styles import (
@@ -102,11 +102,14 @@ class UpdatePane(tk.Frame):
         notes_card.grid(row=0, column=0, sticky="nsew",
                         padx=(0, ui_styles.SPACING["comfortable"]))
         self._notes_title = styled_label(
-            notes_inner, "Release notes", font=ui_styles.FONTS["header"],
+            notes_inner, i18n.t("update.release_notes", "Release notes"),
+            font=ui_styles.FONTS["header"],
             bg=ui_styles.COLORS["surface"])
         self._notes_title.pack(anchor="w")
         self._notes_subtitle = styled_label(
-            notes_inner, "They appear when a newer version is available.",
+            notes_inner,
+            i18n.t("update.release_notes_hint",
+                   "They appear when a newer version is available."),
             font=ui_styles.FONTS["small"],
             bg=ui_styles.COLORS["surface"],
             fg=ui_styles.COLORS["text_secondary"],
@@ -157,7 +160,8 @@ class UpdatePane(tk.Frame):
         )
         self._status_dot.pack(side="left", padx=(0, 6))
         self._headline_label = tk.Label(
-            head, text="Checking for updates…",
+            head, text=i18n.t("update.checking_headline",
+                              "Checking for updates…"),
             font=(ui_styles.FONTS["header"][0], 11, "bold"),
             bg=ui_styles.COLORS["surface"], fg=ui_styles.COLORS["text"],
             anchor="w",
@@ -165,7 +169,9 @@ class UpdatePane(tk.Frame):
         self._headline_label.pack(side="left", fill="x", expand=True)
 
         self._status_label = styled_label(
-            status_inner, "Looking at the public install for a newer release.",
+            status_inner,
+            i18n.t("update.checking_status",
+                   "Looking at the public install for a newer release."),
             font=ui_styles.FONTS["body"],
             bg=ui_styles.COLORS["surface"],
             fg=ui_styles.COLORS["text_secondary"], justify="left",
@@ -176,12 +182,14 @@ class UpdatePane(tk.Frame):
         versions = tk.Frame(status_inner, bg=ui_styles.COLORS["surface"])
         versions.pack(fill="x")
         self._installed_label = styled_label(
-            versions, "Installed: …", font=ui_styles.FONTS["body"],
+            versions, i18n.t("update.installed_placeholder", "Installed: …"),
+            font=ui_styles.FONTS["body"],
             bg=ui_styles.COLORS["surface"],
         )
         self._installed_label.pack(anchor="w")
         self._latest_label = styled_label(
-            versions, "Latest: …", font=ui_styles.FONTS["body"],
+            versions, i18n.t("update.latest_placeholder", "Latest: …"),
+            font=ui_styles.FONTS["body"],
             bg=ui_styles.COLORS["surface"],
         )
         self._latest_label.pack(anchor="w")
@@ -196,20 +204,24 @@ class UpdatePane(tk.Frame):
         actions = tk.Frame(status_inner, bg=ui_styles.COLORS["surface"])
         actions.pack(fill="x", pady=(ui_styles.SPACING["normal"], 0))
         self._update_button = primary_button(
-            actions, "Update & restart", command=self._start_update,
-            state="disabled",
+            actions, i18n.t("update.update_restart", "Update & restart"),
+            command=self._start_update, state="disabled",
         )
         self._update_button.pack(fill="x")
         self._revert_button = styled_button(
-            actions, text="Revert", command=self._start_revert)
+            actions, text=i18n.t("update.revert", "Revert"),
+            command=self._start_revert)
         self._check_button = styled_button(
-            actions, text="Check again", command=self.start_check)
+            actions, text=i18n.t("update.check_again", "Check again"),
+            command=self.start_check)
         self._check_button.pack(fill="x", pady=(6, 0))
 
         self._safety_label = styled_label(
             status_inner,
-            "Updates are blocked while a SAP script or auto-upload is running. "
-            "Settings, scripts and local data are kept.",
+            i18n.t(
+                "update.safety",
+                "Updates are blocked while a SAP script or auto-upload is "
+                "running. Settings, scripts and local data are kept."),
             font=ui_styles.FONTS["small"],
             bg=ui_styles.COLORS["surface"],
             fg=ui_styles.COLORS["text_secondary"],
@@ -217,7 +229,9 @@ class UpdatePane(tk.Frame):
         )
         self._safety_label.pack(side="bottom", anchor="w", pady=(10, 0))
 
-        self._render_empty("Checking the public install…", "Please wait.")
+        self._render_empty(
+            i18n.t("update.checking_diff", "Checking the public install…"),
+            i18n.t("update.please_wait", "Please wait."))
         self._set_update_state(False)
 
     def _card(self, parent):
@@ -230,10 +244,16 @@ class UpdatePane(tk.Frame):
         self._checking = True
         self._checked = False
         self._set_update_state(False)
-        self._set_headline("Checking for updates…", "muted")
-        self._set_status("Looking at the public install for a newer release.")
+        self._set_headline(
+            i18n.t("update.checking_headline", "Checking for updates…"),
+            "muted")
+        self._set_status(i18n.t(
+            "update.checking_status",
+            "Looking at the public install for a newer release."))
         self._checked_label.config(text="")
-        self._render_empty("Checking the public install…", "Please wait.")
+        self._render_empty(
+            i18n.t("update.checking_diff", "Checking the public install…"),
+            i18n.t("update.please_wait", "Please wait."))
         self._spawn(self._run_check)
 
     def _run_check(self):
@@ -247,12 +267,16 @@ class UpdatePane(tk.Frame):
         self._checked = True
         self._check = check
         self._previous = previous
+        unknown = i18n.t("update.unknown", "unknown")
         self._installed_label.config(
-            text=f"Installed: {check.local or 'unknown'}")
+            text=i18n.t("update.installed", "Installed: {version}",
+                        version=check.local or unknown))
         self._latest_label.config(
-            text=f"Latest: {check.remote or 'unknown'}")
+            text=i18n.t("update.latest", "Latest: {version}",
+                        version=check.remote or unknown))
         self._checked_label.config(
-            text=f"Checked at {time.strftime('%H:%M')}")
+            text=i18n.t("update.checked_at", "Checked at {time}",
+                        time=time.strftime('%H:%M')))
 
         notes = getattr(check, "notes", ())
         commits = getattr(check, "commits", ())
@@ -262,37 +286,50 @@ class UpdatePane(tk.Frame):
             self._render_commits(commits)
         elif check.error:
             self._render_empty(
-                "Release notes could not be loaded.",
-                "Check the connection and try again.")
+                i18n.t("update.notes_load_failed",
+                       "Release notes could not be loaded."),
+                i18n.t("update.notes_load_failed_hint",
+                       "Check the connection and try again."))
         elif not check.newer:
             self._render_empty(
-                "You're on the latest version.",
-                "No newer release notes.")
+                i18n.t("update.on_latest", "You're on the latest version."),
+                i18n.t("update.no_newer_notes", "No newer release notes."))
         else:
             self._render_empty(
-                "No release notes for this version.",
-                "The latest commits are shown when available.")
+                i18n.t("update.no_notes_for_version",
+                       "No release notes for this version."),
+                i18n.t("update.no_notes_for_version_hint",
+                       "The latest commits are shown when available."))
 
         self._show_revert(previous)
 
         if check.error:
-            self._set_headline("Could not check for updates", "error")
+            self._set_headline(
+                i18n.t("update.could_not_check",
+                       "Could not check for updates"), "error")
             self._set_status(check.error, "error")
             self._set_update_state(False)
             return
         if check.newer:
-            self._set_headline("Update available", "info")
-            self._set_status("A newer version is ready to install.")
+            self._set_headline(
+                i18n.t("update.available", "Update available"), "info")
+            self._set_status(i18n.t(
+                "update.available_status",
+                "A newer version is ready to install."))
             self._set_update_state(True)
         else:
-            self._set_headline("You're up to date", "success")
-            self._set_status("Everything is up to date.", "success")
+            self._set_headline(
+                i18n.t("update.up_to_date", "You're up to date"), "success")
+            self._set_status(
+                i18n.t("update.up_to_date_status",
+                       "Everything is up to date."), "success")
             self._set_update_state(False)
 
     def _render_notes(self, notes):
-        self._notes_title.config(text="What's new")
-        self._notes_subtitle.config(
-            text="Release notes from the public install.")
+        self._notes_title.config(text=i18n.t("update.whats_new", "What's new"))
+        self._notes_subtitle.config(text=i18n.t(
+            "update.notes_from_public",
+            "Release notes from the public install."))
         self._hide_notes_body()
         try:
             self._notes_text.config(state="normal", height=12)
@@ -312,20 +349,25 @@ class UpdatePane(tk.Frame):
             pass
 
     def _render_commits(self, commits):
-        self._notes_title.config(text="Changes since your version")
-        self._notes_subtitle.config(text="Commits in the public install.")
+        self._notes_title.config(text=i18n.t(
+            "update.changes_since", "Changes since your version"))
+        self._notes_subtitle.config(text=i18n.t(
+            "update.commits_in_public", "Commits in the public install."))
         self._hide_notes_body()
         lines = [f"• {commit.subject} ({commit.date})"
                  for commit in commits[:_MAX_COMMITS]]
         remaining = len(commits) - _MAX_COMMITS
         if remaining > 0:
-            lines.append(f"… and {remaining} more")
+            lines.append(i18n.t("update.and_more", "… and {count} more",
+                                count=remaining))
         self._commit_label.config(text="\n".join(lines))
         self._commit_label.pack(fill="both", expand=True)
 
-    def _render_empty(self, message: str,
-                      subtitle: str = "No newer release notes."):
-        self._notes_title.config(text="Release notes")
+    def _render_empty(self, message: str, subtitle: str = ""):
+        subtitle = subtitle or i18n.t(
+            "update.no_newer_notes", "No newer release notes.")
+        self._notes_title.config(
+            text=i18n.t("update.release_notes", "Release notes"))
         self._notes_subtitle.config(text=subtitle)
         self._hide_notes_body()
         self._notes_empty.config(text=message)
@@ -345,7 +387,9 @@ class UpdatePane(tk.Frame):
             self._revert_button.pack_forget()
             return
         self._revert_button.config(
-            text=f"Revert to {version}", state="normal")
+            text=i18n.t("update.revert_to", "Revert to {version}",
+                        version=version),
+            state="normal")
         if self._revert_button.winfo_manager() == "":
             self._revert_button.pack(
                 fill="x", pady=(6, 0), before=self._check_button)
@@ -356,15 +400,18 @@ class UpdatePane(tk.Frame):
             return
         blocker = self._is_busy()
         if blocker:
-            self._set_headline("Update blocked", "warning")
+            self._set_headline(
+                i18n.t("update.blocked", "Update blocked"), "warning")
             self._set_status(blocker, "warning")
             return
         self._working = True
         self._set_update_state(False)
         self._revert_button.config(state="disabled")
         self._check_button.config(state="disabled")
-        self._set_headline("Updating…", "warning")
-        self._set_status("Installing the new version. The app will restart.")
+        self._set_headline(i18n.t("update.updating", "Updating…"), "warning")
+        self._set_status(i18n.t(
+            "update.installing",
+            "Installing the new version. The app will restart."))
         self._spawn(self._run_update)
 
     def _run_update(self):
@@ -380,16 +427,21 @@ class UpdatePane(tk.Frame):
             return
         blocker = self._is_busy()
         if blocker:
-            self._set_headline("Revert blocked", "warning")
+            self._set_headline(
+                i18n.t("update.revert_blocked", "Revert blocked"), "warning")
             self._set_status(blocker, "warning")
             return
         self._working = True
         self._set_update_state(False)
         self._revert_button.config(state="disabled")
         self._check_button.config(state="disabled")
-        version = self._previous.get("from_version", "the previous version")
-        self._set_headline("Restoring…", "warning")
-        self._set_status(f"Restoring {version}. The app will restart.")
+        version = self._previous.get(
+            "from_version", i18n.t("update.previous_version",
+                                   "the previous version"))
+        self._set_headline(i18n.t("update.restoring", "Restoring…"), "warning")
+        self._set_status(i18n.t(
+            "update.restoring_status",
+            "Restoring {version}. The app will restart.", version=version))
         self._spawn(self._run_revert)
 
     def _run_revert(self):
@@ -398,22 +450,31 @@ class UpdatePane(tk.Frame):
         except Exception as exc:
             self._call(self._fail, str(exc))
             return
-        self._call(self._restart, version, "Reverted")
+        self._call(self._restart, version,
+                   i18n.t("update.reverted", "Reverted"))
 
-    def _restart(self, version: str, verb: str = "Updated"):
-        self._set_headline("Restarting…", "success")
-        self._set_status(f"{verb} to {version}. Restarting…")
+    def _restart(self, version: str, verb: str = ""):
+        verb = verb or i18n.t("update.updated", "Updated")
+        self._set_headline(i18n.t("update.restarting", "Restarting…"),
+                           "success")
+        self._set_status(i18n.t(
+            "update.restarting_status", "{verb} to {version}. Restarting…",
+            verb=verb, version=version))
         try:
             updater.relaunch()
         except Exception as exc:
-            self._fail(f"Could not restart: {exc}")
+            self._fail(i18n.t("update.restart_failed",
+                              "Could not restart: {error}", error=exc))
             return
         self._on_exit()
 
     def _fail(self, message: str):
         self._working = False
-        self._set_headline("Update failed", "error")
-        self._set_status(f"Update failed: {message}", "error")
+        self._set_headline(
+            i18n.t("update.failed", "Update failed"), "error")
+        self._set_status(i18n.t(
+            "update.failed_status", "Update failed: {message}",
+            message=message), "error")
         self._check_button.config(state="normal")
         if self._check is not None and self._check.newer:
             self._set_update_state(True)

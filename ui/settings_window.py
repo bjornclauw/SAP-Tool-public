@@ -79,10 +79,10 @@ TOOL_DETAILS = {
 }
 
 TABS = (
-    ("general", "General"),
-    ("tools", "Tool windows"),
-    ("advanced", "Advanced"),
-    ("update", "Update"),
+    ("general", "settings.tab.general", "General"),
+    ("tools", "settings.tab.tools", "Tool windows"),
+    ("advanced", "settings.tab.advanced", "Advanced"),
+    ("update", "settings.tab.update", "Update"),
 )
 
 
@@ -106,7 +106,7 @@ class SettingsWindow(tk.Toplevel):
         self._update_pane = None
 
         self.withdraw()
-        self.title("Settings")
+        self.title(i18n.t("settings.title", "Settings"))
         self.configure(bg=COLORS["bg"])
         self.geometry("900x660")
         self.minsize(820, 640)
@@ -211,12 +211,14 @@ class SettingsWindow(tk.Toplevel):
         left = tk.Frame(header, bg=COLORS["bg"])
         left.pack(side="left")
         tk.Label(
-            left, text="Settings",
+            left, text=i18n.t("settings.title", "Settings"),
             font=(FONTS["title"][0], 15, "bold"),
             bg=COLORS["bg"], fg=COLORS["text"], anchor="w",
         ).pack(anchor="w")
         tk.Label(
-            left, text="Personalize the toolbar and tool windows",
+            left,
+            text=i18n.t(
+                "settings.subtitle", "Personalize the toolbar and tool windows"),
             font=FONTS["body"], bg=COLORS["bg"],
             fg=COLORS["text_secondary"], anchor="w",
         ).pack(anchor="w", pady=(2, 0))
@@ -225,11 +227,11 @@ class SettingsWindow(tk.Toplevel):
         bar = tk.Frame(parent, bg=COLORS["bg"])
         bar.pack(fill="x", padx=SPACING["comfortable"],
                  pady=(SPACING["comfortable"], 0))
-        for key, label in TABS:
+        for key, label_key, default in TABS:
             holder = tk.Frame(bar, bg=COLORS["bg"], cursor="hand2")
             holder.pack(side="left", padx=(0, 20))
             text = tk.Label(
-                holder, text=label, font=FONTS["body"],
+                holder, text=i18n.t(label_key, default), font=FONTS["body"],
                 bg=COLORS["bg"], fg=COLORS["text_secondary"],
                 cursor="hand2",
             )
@@ -305,7 +307,9 @@ class SettingsWindow(tk.Toplevel):
 
         behaviour_card, behaviour = surface_panel(frame)
         behaviour_card.pack(fill="x", pady=(0, SPACING["comfortable"]))
-        self._section_title(behaviour, "Behaviour", bg=COLORS["surface"])
+        self._section_title(
+            behaviour, i18n.t("settings.behaviour", "Behaviour"),
+            bg=COLORS["surface"])
 
         lang_row = tk.Frame(behaviour, bg=COLORS["surface"])
         lang_row.pack(fill="x", pady=(SPACING["normal"], SPACING["tight"]))
@@ -334,23 +338,28 @@ class SettingsWindow(tk.Toplevel):
         language_box.bind("<<ComboboxSelected>>", self._on_language_picked)
 
         self._checkbutton(
-            behaviour, "Always on Top", self.toolbar.always_on_top,
+            behaviour, i18n.t("settings.always_on_top", "Always on Top"),
+            self.toolbar.always_on_top,
             self.toolbar._toggle_always_on_top, bg=COLORS["surface"],
         ).pack(anchor="w", pady=(SPACING["tight"], 0))
         styled_label(
-            behaviour, "Keeps the main toolbar above other windows.",
+            behaviour,
+            i18n.t("settings.always_on_top_hint",
+                   "Keeps the main toolbar above other windows."),
             font=FONTS["small"], fg=COLORS["text_secondary"],
             bg=COLORS["surface"],
         ).pack(anchor="w", padx=(20, 0), pady=(2, 0))
         styled_label(
-            behaviour, "Changes apply immediately.",
+            behaviour, i18n.t("settings.apply_immediately",
+                              "Changes apply immediately."),
             font=FONTS["small"], fg=COLORS["text_secondary"],
             bg=COLORS["surface"],
         ).pack(anchor="w", pady=(SPACING["normal"], 0))
 
         import_card, sap = surface_panel(frame)
         import_card.pack(fill="x")
-        self._section_title(sap, "SAP", bg=COLORS["surface"])
+        self._section_title(sap, i18n.t("settings.sap", "SAP"),
+                            bg=COLORS["surface"])
         self._import_pg_var = tk.StringVar(
             value=str(saved.get("si_pg", "") or ""))
         self._import_system_var = tk.StringVar(
@@ -359,8 +368,8 @@ class SettingsWindow(tk.Toplevel):
         pg_row = tk.Frame(sap, bg=COLORS["surface"])
         pg_row.pack(fill="x", pady=(SPACING["tight"], 0))
         styled_label(
-            pg_row, "Planner group", font=FONTS["body"],
-            bg=COLORS["surface"],
+            pg_row, i18n.t("settings.planner_group", "Planner group"),
+            font=FONTS["body"], bg=COLORS["surface"],
         ).pack(side="left")
         pg_entry = styled_entry(
             pg_row, textvariable=self._import_pg_var, width=24)
@@ -368,7 +377,9 @@ class SettingsWindow(tk.Toplevel):
         pg_entry.bind("<FocusOut>", self._save_import_settings)
         pg_entry.bind("<Return>", self._save_import_settings)
         styled_label(
-            sap, "Free text. Leave empty for the default planner group.",
+            sap,
+            i18n.t("settings.planner_group_hint",
+                   "Free text. Leave empty for the default planner group."),
             font=FONTS["small"], fg=COLORS["text_secondary"],
             bg=COLORS["surface"],
         ).pack(anchor="w", pady=(2, SPACING["normal"]))
@@ -376,8 +387,8 @@ class SettingsWindow(tk.Toplevel):
         system_row = tk.Frame(sap, bg=COLORS["surface"])
         system_row.pack(fill="x")
         styled_label(
-            system_row, "SAP system", font=FONTS["body"],
-            bg=COLORS["surface"],
+            system_row, i18n.t("settings.sap_system", "SAP system"),
+            font=FONTS["body"], bg=COLORS["surface"],
         ).pack(side="left")
         system_entry = styled_entry(
             system_row, textvariable=self._import_system_var, width=24)
@@ -385,7 +396,9 @@ class SettingsWindow(tk.Toplevel):
         system_entry.bind("<FocusOut>", self._save_import_settings)
         system_entry.bind("<Return>", self._save_import_settings)
         styled_label(
-            sap, "Free text. The SAP system identifier.",
+            sap,
+            i18n.t("settings.sap_system_hint",
+                   "Free text. The SAP system identifier."),
             font=FONTS["small"], fg=COLORS["text_secondary"],
             bg=COLORS["surface"],
         ).pack(anchor="w", pady=(2, 0))
@@ -438,7 +451,8 @@ class SettingsWindow(tk.Toplevel):
 
         header = tk.Frame(left, bg=COLORS["bg"])
         header.pack(fill="x")
-        self._section_title(header, "Tool windows")
+        self._section_title(
+            header, i18n.t("settings.tab.tools", "Tool windows"))
         self._count_label = styled_label(
             header, "", font=FONTS["small"],
             fg=COLORS["text_secondary"], bg=COLORS["bg"],
@@ -457,6 +471,8 @@ class SettingsWindow(tk.Toplevel):
         return frame
 
     def _build_tool_row(self, key: str, name: str, description: str):
+        name = i18n.t(f"tool.{key}.name", name)
+        description = i18n.t(f"tool.{key}.description", description)
         var = tk.BooleanVar(value=key in self.toolbar._tools_enabled)
         self._tool_vars[key] = var
 
@@ -480,7 +496,8 @@ class SettingsWindow(tk.Toplevel):
         )
         desc_lbl.pack(fill="x")
         badge = tk.Label(
-            row, text="ON", font=(FONTS["small"][0], 7, "bold"),
+            row, text=i18n.t("settings.tools.on", "ON"),
+            font=(FONTS["small"][0], 7, "bold"),
             bg=COLORS["success_light"], fg=COLORS["success"],
             padx=6, pady=2,
         )
@@ -531,11 +548,12 @@ class SettingsWindow(tk.Toplevel):
                   and not self.toolbar.power_user.get())
         if paused:
             parts["badge"].configure(
-                text="PAUSED", bg=COLORS["warning_light"],
-                fg=COLORS["warning"])
+                text=i18n.t("settings.tools.paused", "PAUSED"),
+                bg=COLORS["warning_light"], fg=COLORS["warning"])
         else:
             parts["badge"].configure(
-                text="ON" if on else "OFF",
+                text=(i18n.t("settings.tools.on", "ON") if on
+                      else i18n.t("settings.tools.off", "OFF")),
                 bg=COLORS["success_light"] if on else COLORS["surface"],
                 fg=COLORS["success"] if on else COLORS["text_secondary"],
             )
@@ -549,7 +567,9 @@ class SettingsWindow(tk.Toplevel):
             and not (key == "planner" and not self.toolbar.power_user.get())
         )
         total = len(self._tool_vars)
-        self._count_label.configure(text=f"{on} of {total} on")
+        self._count_label.configure(
+            text=i18n.t("settings.tools.count", "{on} of {total} on",
+                        on=on, total=total))
 
     def _on_tool_toggled(self, key: str):
         chosen = [row[0] for row in self.catalogue
@@ -568,6 +588,8 @@ class SettingsWindow(tk.Toplevel):
         if row is None:
             return
         _menu, name, description, _default, opener = row[1:]
+        name = i18n.t(f"tool.{key}.name", name)
+        description = i18n.t(f"tool.{key}.description", description)
         details = TOOL_DETAILS.get(key, {})
 
         frame = tk.Frame(self._detail_host, bg=COLORS["bg"])
@@ -580,7 +602,8 @@ class SettingsWindow(tk.Toplevel):
             bg=COLORS["bg"], fg=COLORS["text"], anchor="w",
         ).pack(side="left")
         self._enabled_cb = self._checkbutton(
-            header, "Enabled", self._tool_vars[key],
+            header, i18n.t("settings.tools.enabled", "Enabled"),
+            self._tool_vars[key],
             lambda k=key: self._on_tool_toggled(k),
         )
         self._enabled_cb.pack(side="right")
@@ -593,7 +616,9 @@ class SettingsWindow(tk.Toplevel):
 
         bullets = tk.Frame(frame, bg=COLORS["bg"])
         bullets.pack(fill="x")
-        for bullet in details.get("bullets", ()):
+        for index, bullet in enumerate(details.get("bullets", ()), start=1):
+            bullet = i18n.t(
+                f"settings.tool.{key}.bullet{index}", bullet)
             tk.Label(
                 bullets, text=f"\u2022 {bullet}", font=FONTS["body"],
                 bg=COLORS["bg"], fg=COLORS["text"], anchor="w",
@@ -611,12 +636,15 @@ class SettingsWindow(tk.Toplevel):
         actions = tk.Frame(frame, bg=COLORS["bg"])
         actions.pack(fill="x", pady=(SPACING["normal"], 0))
         self._open_btn = styled_button(
-            actions, "Open now", command=lambda k=key: self._open_tool(k))
+            actions, i18n.t("settings.tools.open_now", "Open now"),
+            command=lambda k=key: self._open_tool(k))
         self._open_btn.pack(side="left")
         self._power_btn = None
         if details.get("requires_power_user"):
             self._power_btn = styled_button(
-                actions, "Enable Power User",
+                actions,
+                i18n.t("settings.tools.enable_power_user",
+                       "Enable Power User"),
                 command=self._enable_power_user,
             )
             self._power_btn.pack(side="left", padx=(SPACING["tight"], 0))
@@ -648,17 +676,24 @@ class SettingsWindow(tk.Toplevel):
 
         if needs_power:
             if var.get():
-                note = ("Requires Power User. It stays enabled but is hidden "
-                        "from the menu until Power User is on.")
+                note = i18n.t(
+                    "settings.tools.power_paused",
+                    "Requires Power User. It stays enabled but is hidden "
+                    "from the menu until Power User is on.")
             else:
-                note = ("Requires Power User. Turn it on in Advanced, "
-                        "then enable this tool.")
+                note = i18n.t(
+                    "settings.tools.power_required",
+                    "Requires Power User. Turn it on in Advanced, "
+                    "then enable this tool.")
             color = COLORS["warning"]
         elif is_open and var.get():
-            note = ("This tool is open now. Turning it off closes it.")
+            note = i18n.t(
+                "settings.tools.open_warning",
+                "This tool is open now. Turning it off closes it.")
             color = COLORS["warning"]
         elif not var.get():
-            note = "Enable this tool to open it."
+            note = i18n.t(
+                "settings.tools.enable_hint", "Enable this tool to open it.")
             color = COLORS["text_secondary"]
         else:
             note = ""
@@ -691,7 +726,9 @@ class SettingsWindow(tk.Toplevel):
                 relx=0.5, rely=0.5, anchor="center")
         else:
             tk.Label(
-                frame, text="Preview unavailable",
+                frame,
+                text=i18n.t("settings.tools.preview_unavailable",
+                            "Preview unavailable"),
                 font=FONTS["small"], bg=COLORS["surface"],
                 fg=COLORS["text_secondary"],
             ).place(relx=0.5, rely=0.5, anchor="center")
@@ -746,27 +783,35 @@ class SettingsWindow(tk.Toplevel):
             child.destroy()
         developer_card, developer = surface_panel(host)
         developer_card.pack(fill="x", pady=(0, SPACING["comfortable"]))
-        self._section_title(developer, "Developer", bg=COLORS["surface"])
+        self._section_title(
+            developer, i18n.t("settings.developer", "Developer"),
+            bg=COLORS["surface"])
         self._checkbutton(
-            developer, "Power User", self.toolbar.power_user,
+            developer, i18n.t("settings.power_user", "Power User"),
+            self.toolbar.power_user,
             self.toolbar._toggle_power_user, bg=COLORS["surface"],
         ).pack(anchor="w")
         if self.toolbar.power_user.get():
             self._checkbutton(
-                developer, "Debug Mode", self.toolbar.debug_mode,
+                developer, i18n.t("settings.debug_mode", "Debug Mode"),
+                self.toolbar.debug_mode,
                 self.toolbar._toggle_debug_mode, bg=COLORS["surface"],
             ).pack(anchor="w", pady=(SPACING["tight"], 0))
             self._checkbutton(
-                developer, "Debug Console", self.toolbar.show_console,
+                developer, i18n.t("settings.debug_console", "Debug Console"),
+                self.toolbar.show_console,
                 self.toolbar._toggle_console, bg=COLORS["surface"],
             ).pack(anchor="w", pady=(SPACING["tight"], 0))
             self._checkbutton(
-                developer, "Fake SAP", self.toolbar.fake_sap,
+                developer, i18n.t("settings.fake_sap", "Fake SAP"),
+                self.toolbar.fake_sap,
                 self.toolbar._toggle_fake, bg=COLORS["surface"],
             ).pack(anchor="w", pady=(SPACING["tight"], 0))
         else:
             styled_label(
-                developer, "Developer toggles appear when Power User is on.",
+                developer,
+                i18n.t("settings.developer_hint",
+                       "Developer toggles appear when Power User is on."),
                 font=FONTS["small"], fg=COLORS["text_secondary"],
                 bg=COLORS["surface"],
             ).pack(anchor="w", pady=(SPACING["tight"], 0))
@@ -774,15 +819,16 @@ class SettingsWindow(tk.Toplevel):
         maintenance_card, maintenance = surface_panel(host)
         maintenance_card.pack(fill="x")
         self._section_title(
-            maintenance, "Maintenance", bg=COLORS["surface"])
+            maintenance, i18n.t("settings.maintenance", "Maintenance"),
+            bg=COLORS["surface"])
         row = tk.Frame(maintenance, bg=COLORS["surface"])
         row.pack(fill="x", pady=(SPACING["tight"], 0))
         styled_button(
-            row, "Open data folder",
+            row, i18n.t("settings.open_data_folder", "Open data folder"),
             command=self._open_data_folder,
         ).pack(side="left")
         styled_button(
-            row, "Reset tool choices",
+            row, i18n.t("settings.reset_tool_choices", "Reset tool choices"),
             command=self._reset_tool_choices,
         ).pack(side="left", padx=(SPACING["tight"], 0))
 
@@ -797,8 +843,9 @@ class SettingsWindow(tk.Toplevel):
 
     def _reset_tool_choices(self):
         if not messagebox.askyesno(
-            "Reset tool choices",
-            "Show the default tool windows again?",
+            i18n.t("settings.reset_tool_choices", "Reset tool choices"),
+            i18n.t("settings.reset_tool_choices_confirm",
+                   "Show the default tool windows again?"),
             parent=self,
         ):
             return
@@ -828,14 +875,15 @@ class SettingsWindow(tk.Toplevel):
             font=FONTS["small"], fg=COLORS["text_secondary"],
         ).pack(side="left")
         styled_button(
-            row, "Close", command=self.close,
+            row, i18n.t("settings.close", "Close"), command=self.close,
         ).pack(side="right")
         styled_button(
-            row, "Update",
+            row, i18n.t("settings.update", "Update"),
             command=lambda: self.open_update_tab(force_check=True),
         ).pack(side="right", padx=(0, SPACING["tight"]))
         styled_button(
-            row, "Quit", command=self.toolbar._on_close,
+            row, i18n.t("settings.quit", "Quit"),
+            command=self.toolbar._on_close,
             fg=COLORS["error"],
         ).pack(side="right", padx=(0, SPACING["tight"]))
 

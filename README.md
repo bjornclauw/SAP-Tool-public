@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.22.4 — 2026-11-22
+
+- Settings, the Helpers card and the Update tab follow the chosen tool-window language (Dutch, French, English and Spanish).
+
 ## 2026.11.22.3 — 2026-11-22
 
 - The toolbar's week indicator now follows the clock when the app stays open into a new week.
