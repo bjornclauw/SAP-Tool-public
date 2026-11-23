@@ -301,6 +301,19 @@ class DockManager:
         if self._destroyed or not self.dock_enabled.get():
             return
         self._assert_topmost()
+        # Packed content can change after a helper opens, closes or updates
+        # (the OPEN tray). If the bar kept an explicit size from an earlier
+        # show, snap it back to the packed size instead of staying squeezed.
+        if not self._is_hidden():
+            try:
+                w = self.root.winfo_width()
+                h = self.root.winfo_height()
+                rw = self.root.winfo_reqwidth()
+                rh = self.root.winfo_reqheight()
+                if abs(w - rw) > 1 or abs(h - rh) > 1:
+                    self.refit()
+            except Exception:
+                pass
         # A helper that closed may have skipped the last hide; re-arm it so
         # the bar returns to its normal auto-hide behaviour.
         if (self.autohide.get() and not self._is_hidden()
@@ -319,6 +332,20 @@ class DockManager:
                 pass
             self._topmost_id = None
         self._stop_grab_watch()
+
+    def refit(self):
+        """Drop a stale explicit size and re-centre after packed content
+        changed (the open-helper tray growing/shrinking, a helper update)."""
+        if not self.dock_enabled.get():
+            return
+        try:
+            self.root.update_idletasks()
+            if self._is_hidden():
+                return
+            self._release_size()
+            self._snap_top(self._saved_area or work_area_of(self.root))
+        except Exception:
+            pass
 
     def _snap_top(self, area: tuple[int, int, int, int] | None = None):
         """Center on the top edge OF THE TOOLBAR'S OWN MONITOR (not the

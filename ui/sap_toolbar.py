@@ -508,6 +508,7 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             tray.pack_propagate(True)
             tray.update_idletasks()
             tray.configure(height=tray.winfo_reqheight())
+            self.dock.refit()
         except tk.TclError:
             pass
 
@@ -821,6 +822,7 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             try:
                 tray.pack_propagate(True)
                 tray.pack_forget()
+                self.dock.refit()
             except tk.TclError:
                 pass
 

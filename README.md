@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.23.7 — 2026-11-23
+
+- The docked toolbar re-fits itself when the open-helper tray changes, instead of keeping an old size until it is hidden and shown again.
+
 ## 2026.11.23.6 — 2026-11-23
 
 - Fixed the temporary Dock Diagnostic changing the monitor the toolbar docks on; monitor lookups now use one shared, 64-bit-safe API path.
