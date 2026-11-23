@@ -222,9 +222,11 @@ class DockManager:
         was_hidden = self._is_hidden()
         try:
             self._destroy_peek()
-            self.root.withdraw()
+            # Toggle the style in place. A withdraw/deiconify re-maps the
+            # native window, and Windows re-evaluates a DPI-unaware popup's
+            # scale at map time -- on a mixed-DPI desk it then takes the
+            # foreground window's monitor scale.
             self.root.overrideredirect(borderless)
-            self.root.deiconify()
             self.root.update_idletasks()
             self._assert_topmost()
             if was_hidden:
@@ -530,7 +532,7 @@ class DockManager:
             try:
                 self._saved_geometry = self.root.geometry()
                 self._saved_area = work_area_of(self.root)
-                self.root.withdraw()
+                self._park_offscreen()
             except Exception:
                 return
             self._show_peek(animate=False)
@@ -576,8 +578,7 @@ class DockManager:
                     self._anim_id = None
                 return
             try:
-                self.root.withdraw()
-                self.root.attributes("-alpha", 1.0)
+                self._park_offscreen()
             except Exception:
                 pass
             self._show_peek()
@@ -586,6 +587,26 @@ class DockManager:
             self._anim_id = self.root.after(delay, lambda: frame(1))
         except Exception:
             self._anim_id = None
+
+    def _park_offscreen(self):
+        """Keep the bar mapped just above the top edge while hidden.
+
+        Withdraw/deiconify re-maps the native window, and Windows re-evaluates
+        the DPI scale of a DPI-unaware popup at map time: on a mixed-DPI desk
+        the bar came back at the foreground window's monitor scale. A mapped,
+        off-screen window keeps the scale it already had.
+        """
+        try:
+            self.root.update_idletasks()
+            w = self.root.winfo_width() or self.root.winfo_reqwidth() or 800
+            h = self.root.winfo_height() or self.root.winfo_reqheight() or 200
+            x = self.root.winfo_rootx()
+            self.root.geometry(f"{w}x{h}+{x}+{-h - 10}")
+            self.root.attributes("-alpha", 1.0)
+            # A parked window must not keep keyboard focus.
+            self.root.attributes("-disabled", True)
+        except Exception:
+            pass
 
     def _prepare_show(self):
         """Let the owner sync packed content before the show measures it.
@@ -611,6 +632,12 @@ class DockManager:
         self._prepare_show()
         self._cancel_peek_show()
         self._cancel_anim()
+        was_hidden = self._is_hidden()
+        if was_hidden:
+            try:
+                self.root.attributes("-disabled", False)
+            except Exception:
+                pass
         self._destroy_peek()
         if not animate:
             try:
@@ -664,6 +691,12 @@ class DockManager:
                 except Exception:
                     sa = 1.0
                 sa = min(1.0, max(0.0, sa))
+                if was_hidden:
+                    # Parked off-screen: take the packed size now (the old
+                    # height may be stale), then fade in while sliding down.
+                    sa = 0.0
+                    self.root.geometry(f"{w}x{h}+{sx}+{sy}")
+                    self.root.attributes("-alpha", 0.0)
             else:
                 sx, sy, sa = x, my - h, 0.0
                 self.root.geometry(f"{w}x{h}+{sx}+{sy}")

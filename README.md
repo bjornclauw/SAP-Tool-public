@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.23.15 — 2026-11-23
+
+- The docked toolbar keeps its size when it is reopened while a helper is on another monitor with different display scaling. Hiding now parks the window just above the screen edge instead of withdrawing it, so Windows no longer re-scales it when it comes back.
+
 ## 2026.11.23.14 — 2026-11-23
 
 - The docked toolbar no longer changes size or shifts when a helper is dragged between monitors with different display scaling. It is raised when shown instead of being kept in the Windows topmost band, which Windows rescaled during the drag.
