@@ -75,6 +75,10 @@ TOOL_CATALOGUE = [
     ("revisions", "Revisions Register", "Revisions Register",
      "Manage revision weeks and options.", True,
      "_open_revisions_register"),
+    # Temporary: remove with tools/dock_diag.py once the dock bug is fixed.
+    ("dock_diag", "Dock Diagnostic", "Dock Diagnostic (temporary)",
+     "Records monitor, DPI and dock geometry while you reproduce a bug.", True,
+     "_open_dock_diag"),
 ]
 # Frames for the Import marker while auto upload runs (Braille spinner).
 IMPORT_SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
@@ -1305,6 +1309,17 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
         win = SapImportWindow(self, self.engine, is_fake=self.fake_sap.get,
                               counter=self._import_counter,
                               on_queue_changed=self._on_import_queue_changed)
+        self._track_tool_window(key, win)
+
+    def _open_dock_diag(self):
+        from tools.dock_diag import DockDiagWindow
+
+        key = "dock_diag"
+        win = self.tool_windows.get(key)
+        if win is not None and win.winfo_exists():
+            self._bring_to_front(win)
+            return
+        win = DockDiagWindow(self, self.engine)
         self._track_tool_window(key, win)
 
     def _open_planner(self):

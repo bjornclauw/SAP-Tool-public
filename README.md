@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.23.5 — 2026-11-23
+
+- Added a temporary Dock Diagnostic tool (Settings → Tool windows) to record monitor, DPI and dock geometry while reporting a multi-monitor docking issue.
+
 ## 2026.11.23.4 — 2026-11-23
 
 - Docking no longer keeps a stale window size or offset after a helper was open; the bar returns at its packed size, centred on its own monitor.
