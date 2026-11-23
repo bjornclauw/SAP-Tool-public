@@ -227,6 +227,10 @@ class DockDiagWindow(BaseToolWindow):
             self.report_status("Topmost watch off - drag PRH now", "info")
         else:
             dock._start_topmost_watch()
+            try:
+                self.master.attributes("-topmost", True)
+            except Exception:
+                pass
             dock._assert_topmost()
             self._topmost_btn.configure(text="Topmost off")
             self._write("\n=== TOPMOST ON ===")

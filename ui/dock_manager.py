@@ -2,7 +2,11 @@
 
 Full package without a system-tray icon (per request):
 
-- "Dock top": snaps the toolbar to the top edge, centered, kept topmost.
+- "Dock top": snaps the toolbar to the top edge, centered, raised when shown.
+  It deliberately stays OUT of the Windows topmost band: Windows rescales a
+  topmost DPI-unaware window when the foreground window crosses monitors,
+  which made the bar shrink and shift on a mixed-DPI desk. The peek pill
+  stays topmost so it remains reachable.
 - "Auto-hide" (needs dock): after the mouse leaves the window for a short
   dwell, the toolbar withdraws and a slim always-visible **peek strip**
   (primary-blue, full width, 14px, "SAP Toolbar -- hover or Ctrl+Alt+S")
@@ -47,9 +51,8 @@ PEEK_FADE_STEPS = 7
 # Hover dwell on the collapsed pill before the bar restores: a quick pass
 # across the top edge must not pop the toolbar open.
 PEEK_SHOW_DELAY_MS = 200
-# Windows can lose -topmost across withdraw/deiconify or a chrome toggle.
-# Check slowly, but re-apply only when it is actually gone: an unconditional
-# SetWindowPos resets the DPI scale of an unaware window on a scaled monitor.
+# The peek pill can lose -topmost across withdraw/deiconify or a chrome
+# toggle. Check slowly, but re-apply only when it is actually gone.
 TOPMOST_WATCH_MS = 2000
 # A modal grab routes pointer events away from the pill, so poll the pointer
 # while the pill is visible instead of relying on its <Enter> binding.
@@ -155,6 +158,12 @@ class DockManager:
             area = self._saved_area if self._is_hidden() else None
             area = area or work_area_of(self.root)
             self._set_chrome(True)
+            # Keep the docked bar out of the topmost band even when the user
+            # had "always on top" enabled while undocked.
+            try:
+                self.root.attributes("-topmost", False)
+            except Exception:
+                pass
             # Drop any WxH left by an interrupted show animation. Without
             # this, docking keeps the stale size and _snap_top centres the
             # bar from that wrong width.
@@ -272,23 +281,21 @@ class DockManager:
     # ---- dock --------------------------------------------------------
     @_unaware_context
     def _assert_topmost(self):
-        """Re-apply topmost only when Windows actually lost it.
+        """Keep only the peek pill in the topmost band.
 
-        Unconditionally setting ``-topmost`` calls SetWindowPos, and for a
-        DPI-unaware process that resets the virtualized scale of a window on
-        a scaled monitor: the docked bar shrank and shifted left while a
-        helper was dragged between monitors. Reading the native ex-style
-        keeps the watch a no-op while the style is intact. An open combobox
+        The docked bar itself is deliberately not topmost: Windows rescales a
+        topmost DPI-unaware window when the foreground window crosses
+        monitors, which shrank the bar and shifted it left on a mixed-DPI
+        desk. It is raised with lift()/focus_force() when shown instead. The
+        pill must stay topmost so it is reachable above SAP.
+
+        Re-apply only when Windows actually lost the style; reading the native
+        ex-style keeps the watch a no-op while it is intact. An open combobox
         popdown is left alone: changing z-order under it can close the
         dropdown while the user is choosing.
         """
         if not self.dock_enabled.get() or self._popup_grab_active():
             return
-        if not is_topmost(self.root.winfo_id()):
-            try:
-                self.root.attributes("-topmost", True)
-            except Exception:
-                pass
         peek = self._peek
         if peek is None:
             return

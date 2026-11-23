@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.23.14 — 2026-11-23
+
+- The docked toolbar no longer changes size or shifts when a helper is dragged between monitors with different display scaling. It is raised when shown instead of being kept in the Windows topmost band, which Windows rescaled during the drag.
+
 ## 2026.11.23.13 — 2026-11-23
 
 - Fixed the remaining case where the docked toolbar could still resize after a helper was dragged between monitors with different display scaling.
