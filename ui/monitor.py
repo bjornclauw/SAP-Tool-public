@@ -27,6 +27,9 @@ import sys
 
 _MONITOR_DEFAULTTONEAREST = 2
 _MDT_EFFECTIVE_DPI = 0
+# DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: used only for short read-only
+# probes, so an unaware process can see real pixels and the real monitor DPI.
+_DPI_CONTEXT_PER_MONITOR_V2 = ctypes.c_void_p(-4)
 
 
 class _Rect(ctypes.Structure):
@@ -65,6 +68,13 @@ if sys.platform == "win32":
     _user32.GetDpiForWindow.argtypes = [ctypes.c_void_p]
     _user32.GetDpiForWindow.restype = ctypes.c_uint
     _user32.GetDpiForSystem.restype = ctypes.c_uint
+    _user32.GetWindowRect.argtypes = [ctypes.c_void_p, ctypes.POINTER(_Rect)]
+    _user32.GetWindowRect.restype = ctypes.c_int
+    try:
+        _user32.SetThreadDpiAwarenessContext.argtypes = [ctypes.c_void_p]
+        _user32.SetThreadDpiAwarenessContext.restype = ctypes.c_void_p
+    except AttributeError:
+        pass  # pre-Windows 10 1703
     _shcore.GetDpiForMonitor.argtypes = [
         ctypes.c_void_p, ctypes.c_int,
         ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint)]
@@ -126,6 +136,58 @@ def system_dpi() -> int:
         return int(_user32.GetDpiForSystem()) or 0
     except Exception:
         return 0
+
+
+def physical_window_rect(hwnd) -> tuple[int, int, int, int, int] | None:
+    """(x, y, w, h, monitor_dpi) in real pixels, bypassing virtualization.
+
+    An unaware process is always told 96 DPI and gets virtualized rectangles.
+    This reads the real values from a temporary per-monitor-V2 thread context
+    and restores the caller's context immediately. Read-only; returns None
+    when unavailable.
+    """
+    if _user32 is None or not hwnd:
+        return None
+    try:
+        previous = _user32.SetThreadDpiAwarenessContext(
+            _DPI_CONTEXT_PER_MONITOR_V2)
+    except Exception:
+        return None
+    try:
+        rect = _Rect()
+        if not _user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+            return None
+        info = monitor_info_of_window(hwnd)
+        return (
+            rect.left, rect.top, rect.right - rect.left,
+            rect.bottom - rect.top, (info or {}).get("dpi", 0),
+        )
+    except Exception:
+        return None
+    finally:
+        try:
+            _user32.SetThreadDpiAwarenessContext(previous)
+        except Exception:
+            pass
+
+
+def physical_monitor_dpi(hmon) -> int:
+    """The monitor's real DPI, even from an unaware process."""
+    if _user32 is None or not hmon:
+        return 0
+    try:
+        previous = _user32.SetThreadDpiAwarenessContext(
+            _DPI_CONTEXT_PER_MONITOR_V2)
+    except Exception:
+        return 0
+    try:
+        info = monitor_info(hmon)
+        return (info or {}).get("dpi", 0)
+    finally:
+        try:
+            _user32.SetThreadDpiAwarenessContext(previous)
+        except Exception:
+            pass
 
 
 def monitor_of_window(hwnd) -> int:

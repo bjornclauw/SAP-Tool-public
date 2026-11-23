@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.23.11 — 2026-11-23
+
+- The temporary Dock Diagnostic now records the real physical window size and monitor DPI, and can switch the topmost watch off to isolate a repaint problem.
+
 ## 2026.11.23.10 — 2026-11-23
 
 - A temporary **DPI Mode Test** tool window restarts the app in either DPI mode, so the docked toolbar can be compared while a helper moves between monitors.

@@ -22,6 +22,8 @@ from ui.monitor import (
     all_monitors,
     dpi_for_window,
     monitor_info_of_window,
+    physical_monitor_dpi,
+    physical_window_rect,
     process_awareness,
     system_dpi,
     virtual_screen,
@@ -38,7 +40,8 @@ def _fmt_monitor(info: dict | None) -> str:
         return "none"
     return (
         f"hmon={info['handle']} monitor={info['monitor']} "
-        f"work={info['work']} primary={info['primary']} dpi={info['dpi']}"
+        f"work={info['work']} primary={info['primary']} dpi={info['dpi']} "
+        f"real_dpi={physical_monitor_dpi(info['handle'])}"
     )
 
 
@@ -57,6 +60,8 @@ class DockDiagWindow(BaseToolWindow):
         self._log_path: Path | None = None
         self._text = None
         self._path_label = None
+        self._topmost_btn = None
+        self._topmost_off = False
         self._build()
         self._build_status_bar()
         self.protocol("WM_DELETE_WINDOW", self._close)
@@ -103,6 +108,10 @@ class DockDiagWindow(BaseToolWindow):
         ):
             styled_button(buttons, text, command=command).pack(
                 side="left", padx=(0, ui_styles.SPACING["tight"]))
+        self._topmost_btn = styled_button(
+            buttons, "Topmost off", command=self._toggle_topmost)
+        self._topmost_btn.pack(
+            side="left", padx=(0, ui_styles.SPACING["tight"]))
         styled_button(buttons, "Close", command=self._close).pack(side="right")
 
         text_frame = tk.Frame(
@@ -195,6 +204,34 @@ class DockDiagWindow(BaseToolWindow):
         dock.apply()
         self.report_status("Dock auto-hide restored", "info")
 
+    def _toggle_topmost(self):
+        """Drop/restore the 2-second topmost watch while reproducing.
+
+        The watch re-applies ``-topmost`` unconditionally; on a DPI-scaled
+        monitor that SetWindowPos can reset the window's virtualized scale.
+        Turning it off isolates that from the drag itself.
+        """
+        dock = getattr(self.master, "dock", None)
+        if dock is None:
+            return
+        self._topmost_off = not self._topmost_off
+        if self._topmost_off:
+            dock._stop_topmost_watch()
+            try:
+                self.master.attributes("-topmost", False)
+            except Exception:
+                pass
+            self._topmost_btn.configure(text="Topmost on")
+            self._write("\n=== TOPMOST OFF ===")
+            self.report_status("Topmost watch off - drag PRH now", "info")
+        else:
+            dock._start_topmost_watch()
+            dock._assert_topmost()
+            self._topmost_btn.configure(text="Topmost off")
+            self._write("\n=== TOPMOST ON ===")
+            self.report_status("Topmost watch restored", "info")
+        self._sample()
+
     def _open_folder(self):
         path = self._log_path.parent if self._log_path else APP_ROOT / "data"
         try:
@@ -204,6 +241,11 @@ class DockDiagWindow(BaseToolWindow):
             self.report_status(f"Could not open data folder: {exc}", "error")
 
     def _close(self):
+        if self._topmost_off:
+            dock = getattr(self.master, "dock", None)
+            if dock is not None:
+                dock._start_topmost_watch()
+                dock._assert_topmost()
         self._stop()
         self.destroy()
 
@@ -267,6 +309,7 @@ class DockDiagWindow(BaseToolWindow):
                     f"{bool(dock.dock_enabled.get())} "
                     f"autohide={bool(dock.autohide.get())} "
                     f"hidden={dock._is_hidden()} "
+                    f"topmost={bool(self.master.attributes('-topmost'))} "
                     f"saved_geometry={dock._saved_geometry!r} "
                     f"saved_area={dock._saved_area!r}")
             except Exception as exc:
@@ -291,6 +334,12 @@ class DockDiagWindow(BaseToolWindow):
             hwnd = window.winfo_id()
             monitor = _fmt_monitor(monitor_info_of_window(hwnd))
             window_dpi = dpi_for_window(hwnd)
+            native = physical_window_rect(hwnd)
+            phys = (
+                "none" if native is None
+                else f"{native[2]}x{native[3]}+{native[0]}+{native[1]} "
+                     f"real_dpi={native[4]}"
+            )
             try:
                 over = window.overrideredirect()
             except Exception:
@@ -304,7 +353,7 @@ class DockDiagWindow(BaseToolWindow):
                 f"visible={bool(window.winfo_viewable())} "
                 f"overrideredirect={over} "
                 f"hwnd={hwnd} window_dpi={window_dpi} "
-                f"area={work_area_of(window)} "
+                f"phys={phys} area={work_area_of(window)} "
                 f"{monitor}")
         except Exception as exc:
             return f"{name}: error={exc}"
