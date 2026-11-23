@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.23.10 — 2026-11-23
+
+- A temporary **DPI Mode Test** tool window restarts the app in either DPI mode, so the docked toolbar can be compared while a helper moves between monitors.
+
 ## 2026.11.23.9 — 2026-11-23
 
 - The docked bar animates to its packed size after a helper moves or the tray changes, instead of briefly using an old size.

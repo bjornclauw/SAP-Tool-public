@@ -28,7 +28,7 @@ from . import ui_styles
 from .custom_widgets import CustomButton, CustomEntry, CustomLabel, ScriptRunnerMixin, _get_config
 from .debugger import DebuggerWindow
 from .dock_manager import DockManager, load_logo_image
-from .dpi import pin_dpi_unaware
+from .dpi import pin_dpi_mode, read_startup_mode
 from .ui_styles import (
     card_frame,
     styled_frame,
@@ -79,6 +79,10 @@ TOOL_CATALOGUE = [
     ("dock_diag", "Dock Diagnostic", "Dock Diagnostic (temporary)",
      "Records monitor, DPI and dock geometry while you reproduce a bug.", True,
      "_open_dock_diag"),
+    # Temporary: remove with tools/dpi_test.py once the dock bug is fixed.
+    ("dpi_test", "DPI Mode Test", "DPI Mode Test (temporary)",
+     "Restart the app DPI-unaware or per-monitor V2 and compare the dock.",
+     True, "_open_dpi_test"),
 ]
 # Frames for the Import marker while auto upload runs (Braille spinner).
 IMPORT_SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
@@ -86,8 +90,9 @@ IMPORT_SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 
 class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
     def __init__(self):
-        # Before the root window exists: one fixed DPI mode for the app.
-        pin_dpi_unaware()
+        # Before the root window exists: one fixed DPI mode for the app. The
+        # temporary DPI Test window can select per-monitor V2 for a restart.
+        pin_dpi_mode(read_startup_mode())
         super().__init__()
         self.title("SAP Work Order Tool")
         self.config(bg=ui_styles.COLORS["bg"])
@@ -1322,6 +1327,17 @@ class SapToolbar(ScriptRunnerMixin, tkinterdnd2.TkinterDnD.Tk):
             self._bring_to_front(win)
             return
         win = DockDiagWindow(self, self.engine)
+        self._track_tool_window(key, win)
+
+    def _open_dpi_test(self):
+        from tools.dpi_test import DpiTestWindow
+
+        key = "dpi_test"
+        win = self.tool_windows.get(key)
+        if win is not None and win.winfo_exists():
+            self._bring_to_front(win)
+            return
+        win = DpiTestWindow(self, self.engine)
         self._track_tool_window(key, win)
 
     def _open_planner(self):

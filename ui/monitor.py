@@ -5,11 +5,11 @@ anything positioned from them (dock centering, new-window placement)
 lands wrong on multi-monitor setups. This resolves the work area
 (monitor minus taskbar) of the monitor nearest a widget.
 
-DPI note: only a per-monitor-aware process sees raw physical monitor
-rectangles while Tk 8.6 keeps laying out in its 96-DPI space, so only
-that mode divides by the window's DPI. An unaware process gets 96 from
-GetDpiForWindow and a system-aware process gets virtualized, already
-scaled rectangles; dividing those would shrink the work area.
+DPI note: GetMonitorInfo already returns rectangles in the process's own
+coordinate space -- virtualized (96-DPI) for an unaware process, physical
+pixels for a system- or per-monitor-aware one. Tk 8.6 uses that same space
+for geometry, so the rectangle is used as-is; dividing by the monitor DPI
+would shrink the work area and move windows to the wrong monitor.
 
 The ctypes prototypes live here and nowhere else. Several modules query
 monitors; a second module setting its own ``GetMonitorInfoW.argtypes`` with
@@ -108,13 +108,6 @@ def process_awareness() -> int:
         return value.value
     except Exception:
         return 0
-
-
-def _dpi_scale(awareness: int, dpi: int) -> float:
-    """Physical-to-Tk scaling, only when Tk is stuck at 96 DPI."""
-    if awareness == 2:
-        return (dpi or 96) / 96.0
-    return 1.0
 
 
 def dpi_for_window(hwnd) -> int:
@@ -223,12 +216,5 @@ def _windows_work_area(widget) -> tuple[int, int, int, int] | None:
     info = monitor_info_of_window(hwnd)
     if info is None:
         return None
-    dpi = dpi_for_window(hwnd) or 96
-    scale = _dpi_scale(process_awareness(), dpi)
     left, top, right, bottom = info["work"]
-    return (
-        int(left / scale),
-        int(top / scale),
-        int((right - left) / scale),
-        int((bottom - top) / scale),
-    )
+    return (left, top, right - left, bottom - top)
