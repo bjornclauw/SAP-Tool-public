@@ -45,7 +45,7 @@ PEEK_FADE_MS = 150
 PEEK_FADE_STEPS = 7
 # Hover dwell on the collapsed pill before the bar restores: a quick pass
 # across the top edge must not pop the toolbar open.
-PEEK_SHOW_DELAY_MS = 1000
+PEEK_SHOW_DELAY_MS = 400
 # Windows drops -topmost across withdraw/deiconify and when a helper takes
 # focus; re-assert it periodically while docked.
 TOPMOST_WATCH_MS = 2000

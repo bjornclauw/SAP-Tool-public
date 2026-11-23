@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.23.2 — 2026-11-23
+
+- The collapsed docked toolbar now restores after 400 ms of hover instead of 1 second.
+
 ## 2026.11.23.1 — 2026-11-23
 
 - Editing a main-toolbar button no longer disappears when the docked toolbar auto-hides.
