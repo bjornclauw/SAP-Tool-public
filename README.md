@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.23.8 — 2026-11-23
+
+- The docked toolbar also re-centres itself if it drifts off its monitor's centre.
+
 ## 2026.11.23.7 — 2026-11-23
 
 - The docked toolbar re-fits itself when the open-helper tray changes, instead of keeping an old size until it is hidden and shown again.

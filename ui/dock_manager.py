@@ -310,7 +310,13 @@ class DockManager:
                 h = self.root.winfo_height()
                 rw = self.root.winfo_reqwidth()
                 rh = self.root.winfo_reqheight()
-                if abs(w - rw) > 1 or abs(h - rh) > 1:
+                stale_size = abs(w - rw) > 1 or abs(h - rh) > 1
+                mx, my, mw, _mh = work_area_of(self.root)
+                expected_x = mx + max(0, (mw - w) // 2)
+                off_center = (
+                    abs(self.root.winfo_rootx() - expected_x) > 1
+                    or abs(self.root.winfo_rooty() - my) > 1)
+                if stale_size or off_center:
                     self.refit()
             except Exception:
                 pass
@@ -343,7 +349,7 @@ class DockManager:
             if self._is_hidden():
                 return
             self._release_size()
-            self._snap_top(self._saved_area or work_area_of(self.root))
+            self._snap_top(work_area_of(self.root))
         except Exception:
             pass
 
