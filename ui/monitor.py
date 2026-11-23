@@ -24,15 +24,24 @@ from __future__ import annotations
 
 import ctypes
 import sys
+from contextlib import contextmanager
 
 _MONITOR_DEFAULTTONEAREST = 2
 _MDT_EFFECTIVE_DPI = 0
 _GA_ROOT = 2
 _GWL_EXSTYLE = -20
 _WS_EX_TOPMOST = 0x00000008
-# DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: used only for short read-only
-# probes, so an unaware process can see real pixels and the real monitor DPI.
+# DPI_AWARENESS_CONTEXT values: used for short read-only probes and to put the
+# thread back in the process's 96-DPI context around window API calls.
+_DPI_CONTEXT_UNAWARE = ctypes.c_void_p(-1)
 _DPI_CONTEXT_PER_MONITOR_V2 = ctypes.c_void_p(-4)
+_DPI_CONTEXT_NAMES = (
+    (-1, "unaware"),
+    (-2, "system"),
+    (-3, "per-monitor"),
+    (-4, "per-monitor-v2"),
+    (-5, "unaware-gdiscaled"),
+)
 
 
 class _Rect(ctypes.Structure):
@@ -76,6 +85,10 @@ if sys.platform == "win32":
     try:
         _user32.SetThreadDpiAwarenessContext.argtypes = [ctypes.c_void_p]
         _user32.SetThreadDpiAwarenessContext.restype = ctypes.c_void_p
+        _user32.GetThreadDpiAwarenessContext.restype = ctypes.c_void_p
+        _user32.AreDpiAwarenessContextsEqual.argtypes = [
+            ctypes.c_void_p, ctypes.c_void_p]
+        _user32.AreDpiAwarenessContextsEqual.restype = ctypes.c_int
     except AttributeError:
         pass  # pre-Windows 10 1703
     _user32.GetAncestor.argtypes = [ctypes.c_void_p, ctypes.c_uint]
@@ -150,6 +163,55 @@ def system_dpi() -> int:
         return int(_user32.GetDpiForSystem()) or 0
     except Exception:
         return 0
+
+
+def thread_awareness() -> str:
+    """The calling thread's current DPI awareness context, as a name.
+
+    Tk can leave the thread in the context of the last window that received a
+    message, so this can differ from ``process_awareness()``.
+    """
+    if _user32 is None:
+        return "unknown"
+    try:
+        context = _user32.GetThreadDpiAwarenessContext()
+    except Exception:
+        return "unknown"
+    for value, name in _DPI_CONTEXT_NAMES:
+        try:
+            if _user32.AreDpiAwarenessContextsEqual(
+                    context, ctypes.c_void_p(value)):
+                return name
+        except Exception:
+            break
+    return "other"
+
+
+@contextmanager
+def unaware_thread():
+    """Run window API calls in the process's 96-DPI context.
+
+    A message dispatched to a window can leave the thread in that window's
+    DPI context. Geometry and z-order calls made afterwards then run in that
+    context, which can reset the virtualized scale of an unaware window on a
+    scaled monitor. Restores the previous context on exit.
+    """
+    if _user32 is None:
+        yield
+        return
+    previous = None
+    try:
+        previous = _user32.SetThreadDpiAwarenessContext(_DPI_CONTEXT_UNAWARE)
+    except Exception:
+        pass
+    try:
+        yield
+    finally:
+        if previous:
+            try:
+                _user32.SetThreadDpiAwarenessContext(previous)
+            except Exception:
+                pass
 
 
 def is_topmost(hwnd) -> bool:

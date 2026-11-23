@@ -26,6 +26,7 @@ from ui.monitor import (
     physical_window_rect,
     process_awareness,
     system_dpi,
+    thread_awareness,
     virtual_screen,
     work_area_of,
 )
@@ -259,6 +260,7 @@ class DockDiagWindow(BaseToolWindow):
             f"Dock diagnostic  {datetime.now():%Y-%m-%d %H:%M:%S}",
             f"version={version} python={sys.version.split()[0]}",
             f"process_awareness={process_awareness()} "
+            f"thread_awareness={thread_awareness()} "
             f"system_dpi={system_dpi()} "
             f"tk_scaling={self.tk.call('tk', 'scaling')} "
             f"screen={self.winfo_screenwidth()}x{self.winfo_screenheight()}",
@@ -320,6 +322,7 @@ class DockDiagWindow(BaseToolWindow):
                 f"screen={root.winfo_screenwidth()}x"
                 f"{root.winfo_screenheight()} "
                 f"awareness={process_awareness()} "
+                f"thread={thread_awareness()} "
                 f"system_dpi={system_dpi()}")
         except Exception as exc:
             lines.append(f"scaling: error={exc}")

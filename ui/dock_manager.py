@@ -26,9 +26,10 @@ from __future__ import annotations
 import queue
 import threading
 import tkinter as tk
+from functools import wraps
 from pathlib import Path
 
-from .monitor import is_topmost, work_area_of
+from .monitor import is_topmost, unaware_thread, work_area_of
 
 HOTKEY_ID = 0x5A17
 HOTKEY_MOD = 0x0001 | 0x0002  # MOD_ALT | MOD_CONTROL
@@ -54,6 +55,21 @@ TOPMOST_WATCH_MS = 2000
 # while the pill is visible instead of relying on its <Enter> binding.
 PEEK_HOVER_MS = 120
 LOGO_PATH = Path(__file__).parent.parent / "assets" / "logo.png"
+
+
+def _unaware_context(fn):
+    """Run a window-API method in the process's own DPI context.
+
+    A message dispatched to a window can leave the thread in that window's
+    DPI context; a later SetWindowPos then resets the virtualized scale of
+    the unaware docked bar on a scaled monitor.
+    """
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        with unaware_thread():
+            return fn(*args, **kwargs)
+
+    return wrapper
 
 
 def load_logo_image(size: int, master=None):
@@ -254,6 +270,7 @@ class DockManager:
         self._peek_logo_img = None
 
     # ---- dock --------------------------------------------------------
+    @_unaware_context
     def _assert_topmost(self):
         """Re-apply topmost only when Windows actually lost it.
 
@@ -298,6 +315,7 @@ class DockManager:
             except Exception:
                 self._topmost_id = None
 
+    @_unaware_context
     def _topmost_tick(self):
         self._topmost_id = None
         if self._destroyed or not self.dock_enabled.get():
