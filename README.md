@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.23.6 — 2026-11-23
+
+- Fixed the temporary Dock Diagnostic changing the monitor the toolbar docks on; monitor lookups now use one shared, 64-bit-safe API path.
+
 ## 2026.11.23.5 — 2026-11-23
 
 - Added a temporary Dock Diagnostic tool (Settings → Tool windows) to record monitor, DPI and dock geometry while reporting a multi-monitor docking issue.

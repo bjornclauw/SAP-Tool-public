@@ -8,7 +8,6 @@ It samples the toolbar, the collapsed pill and the Purchase Request window
 
 from __future__ import annotations
 
-import ctypes
 import os
 import sys
 import time
@@ -19,109 +18,28 @@ from pathlib import Path
 from core.updater import APP_ROOT, read_version
 from ui import ui_styles
 from ui.custom_widgets import BaseToolWindow
-from ui.monitor import work_area_of
+from ui.monitor import (
+    all_monitors,
+    dpi_for_window,
+    monitor_info_of_window,
+    process_awareness,
+    system_dpi,
+    virtual_screen,
+    work_area_of,
+)
 from ui.ui_styles import styled_button, styled_frame, styled_label
 
 SAMPLE_MS = 250
 MAX_SECONDS = 180
-MONITOR_STEP = 250
 
 
-class _RECT(ctypes.Structure):
-    _fields_ = [
-        ("left", ctypes.c_long),
-        ("top", ctypes.c_long),
-        ("right", ctypes.c_long),
-        ("bottom", ctypes.c_long),
-    ]
-
-
-class _MONITORINFO(ctypes.Structure):
-    _fields_ = [
-        ("cbSize", ctypes.c_ulong),
-        ("rcMonitor", _RECT),
-        ("rcWork", _RECT),
-        ("dwFlags", ctypes.c_ulong),
-    ]
-
-
-_user32 = ctypes.windll.user32
-_shcore = ctypes.windll.shcore
-_user32.MonitorFromWindow.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
-_user32.MonitorFromWindow.restype = ctypes.c_void_p
-_user32.MonitorFromPoint.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
-_user32.MonitorFromPoint.restype = ctypes.c_void_p
-_user32.GetMonitorInfoW.argtypes = [ctypes.c_void_p, ctypes.POINTER(_MONITORINFO)]
-_user32.GetMonitorInfoW.restype = ctypes.c_int
-_user32.GetDpiForWindow.argtypes = [ctypes.c_void_p]
-_user32.GetDpiForWindow.restype = ctypes.c_uint
-_user32.GetDpiForSystem.restype = ctypes.c_uint
-_shcore.GetDpiForMonitor.argtypes = [
-    ctypes.c_void_p, ctypes.c_int,
-    ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint)]
-_shcore.GetDpiForMonitor.restype = ctypes.c_long
-_shcore.GetProcessDpiAwareness.argtypes = [ctypes.c_void_p,
-                                           ctypes.POINTER(ctypes.c_int)]
-_shcore.GetProcessDpiAwareness.restype = ctypes.c_long
-
-
-class _Point(ctypes.Structure):
-    _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
-
-
-_user32.MonitorFromPoint.argtypes = [_Point, ctypes.c_uint32]
-
-
-def _awareness() -> int:
-    try:
-        value = ctypes.c_int()
-        _shcore.GetProcessDpiAwareness(None, ctypes.byref(value))
-        return value.value
-    except Exception:
-        return -1
-
-
-def _monitor_info(hmon) -> str:
-    if not hmon:
+def _fmt_monitor(info: dict | None) -> str:
+    if info is None:
         return "none"
-    try:
-        info = _MONITORINFO()
-        info.cbSize = ctypes.sizeof(_MONITORINFO)
-        if not _user32.GetMonitorInfoW(hmon, ctypes.byref(info)):
-            return f"hmon={hmon} GetMonitorInfo failed"
-        dx = ctypes.c_uint()
-        dy = ctypes.c_uint()
-        _shcore.GetDpiForMonitor(hmon, 0, ctypes.byref(dx), ctypes.byref(dy))
-        return (
-            f"hmon={hmon} monitor=({info.rcMonitor.left},{info.rcMonitor.top},"
-            f"{info.rcMonitor.right},{info.rcMonitor.bottom}) "
-            f"work=({info.rcWork.left},{info.rcWork.top},"
-            f"{info.rcWork.right},{info.rcWork.bottom}) "
-            f"primary={bool(info.dwFlags & 1)} dpi={dx.value}"
-        )
-    except Exception as exc:
-        return f"hmon={hmon} error={exc}"
-
-
-def _monitors() -> str:
-    if sys.platform != "win32":
-        return "non-Windows"
-    try:
-        vx = _user32.GetSystemMetrics(76)
-        vy = _user32.GetSystemMetrics(77)
-        vw = _user32.GetSystemMetrics(78)
-        vh = _user32.GetSystemMetrics(79)
-    except Exception as exc:
-        return f"error={exc}"
-    seen = {}
-    for y in range(vy, vy + vh, MONITOR_STEP):
-        for x in range(vx, vx + vw, MONITOR_STEP):
-            hmon = _user32.MonitorFromPoint(_Point(x, y), 0)
-            if hmon and hmon not in seen:
-                seen[hmon] = _monitor_info(hmon)
-    lines = [f"virtual=({vx},{vy},{vw},{vh})"]
-    lines.extend(f"  {text}" for text in seen.values())
-    return "\n".join(lines)
+    return (
+        f"hmon={info['handle']} monitor={info['monitor']} "
+        f"work={info['work']} primary={info['primary']} dpi={info['dpi']}"
+    )
 
 
 class DockDiagWindow(BaseToolWindow):
@@ -278,12 +196,13 @@ class DockDiagWindow(BaseToolWindow):
         return "\n".join([
             f"Dock diagnostic  {datetime.now():%Y-%m-%d %H:%M:%S}",
             f"version={version} python={sys.version.split()[0]}",
-            f"process_awareness={_awareness()} "
-            f"system_dpi={_user32.GetDpiForSystem()} "
+            f"process_awareness={process_awareness()} "
+            f"system_dpi={system_dpi()} "
             f"tk_scaling={self.tk.call('tk', 'scaling')} "
             f"screen={self.winfo_screenwidth()}x{self.winfo_screenheight()}",
+            f"virtual={virtual_screen()}",
             "monitors:",
-            _monitors(),
+            *[f"  {_fmt_monitor(info)}" for info in all_monitors()],
             "",
         ])
 
@@ -337,8 +256,8 @@ class DockDiagWindow(BaseToolWindow):
                 f"tk_scaling={root.tk.call('tk', 'scaling')} "
                 f"screen={root.winfo_screenwidth()}x"
                 f"{root.winfo_screenheight()} "
-                f"awareness={_awareness()} "
-                f"system_dpi={_user32.GetDpiForSystem()}")
+                f"awareness={process_awareness()} "
+                f"system_dpi={system_dpi()}")
         except Exception as exc:
             lines.append(f"scaling: error={exc}")
         return "\n".join(lines)
@@ -350,12 +269,8 @@ class DockDiagWindow(BaseToolWindow):
             if not window.winfo_exists():
                 return f"{name}: destroyed"
             hwnd = window.winfo_id()
-            monitor = _monitor_info(
-                _user32.MonitorFromWindow(hwnd, 2))
-            try:
-                window_dpi = int(_user32.GetDpiForWindow(hwnd)) or 0
-            except Exception:
-                window_dpi = 0
+            monitor = _fmt_monitor(monitor_info_of_window(hwnd))
+            window_dpi = dpi_for_window(hwnd)
             try:
                 over = window.overrideredirect()
             except Exception:
