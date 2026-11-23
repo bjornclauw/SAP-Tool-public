@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.23.3 — 2026-11-23
+
+- The collapsed docked toolbar now restores after 200 ms of hover.
+
 ## 2026.11.23.2 — 2026-11-23
 
 - The collapsed docked toolbar now restores after 400 ms of hover instead of 1 second.
