@@ -133,17 +133,38 @@ class CustomComponent:
 
         # Create save callback
         def save_callback(new_data: dict):
-            if original_id not in self.config_data["customcomponents"][self.component_type]:
-                self.config_data["customcomponents"][self.component_type][original_id] = {}
-            self.config_data["customcomponents"][self.component_type][original_id].update(new_data)
-            cfg.save_config(self.config_data)
-
-            # Update this widget
-            self._update_from_data(new_data)
+            self._apply_edit(original_id, new_data)
 
         EditModal.from_widget(
             self, self, self.component_type, original_id, self.config_data, save_callback  # type: ignore[arg-type]
         )
+
+    def _apply_edit(self, original_id: str, new_data: dict):
+        """Persist one edited entry, routing a tool-window script as an override."""
+        bucket = self.config_data["customcomponents"][self.component_type]
+        if original_id not in bucket:
+            bucket[original_id] = {}
+        entry = bucket[original_id]
+        old_script = entry.get("script")
+        entry.update(new_data)
+        try:
+            if (self.component_type == "buttons"
+                    and "script" in new_data
+                    and new_data["script"] != old_script):
+                from core import script_overrides
+
+                script_overrides.record_tool_script(
+                    original_id, new_data["script"])
+            cfg.save_config(self.config_data)
+        except OSError as exc:
+            from tkinter import messagebox
+
+            messagebox.showerror(
+                "Could not save", str(exc), parent=self)
+            return
+
+        # Update this widget
+        self._update_from_data(new_data)
 
     def _get_original_id(self) -> str:
         """Get the original button_id (strip suffixes like _header, _entry, _btn)."""
@@ -499,7 +520,14 @@ class ScriptRunnerMixin:
         if toolbar.debug_mode.get():
             def save_script(new_script: str):
                 self.config_data["customcomponents"]["buttons"][button_id]["script"] = new_script
-                cfg.save_config(self.config_data)
+                from core import script_overrides
+
+                try:
+                    script_overrides.record_tool_script(button_id, new_script)
+                    cfg.save_config(self.config_data)
+                except OSError as exc:
+                    self.report_status(
+                        f"Could not save script: {exc}", "error")
             toolbar.open_debugger(script, script_name, on_save=save_script, on_success=on_success)
             return
 

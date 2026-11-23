@@ -6,16 +6,19 @@ Two files, split by ownership:
 
 - ``config/toolbar_config.json`` (tracked): the app's shipped config. Main
   toolbar entries live here as stubs -- id, label, var name -- with no script.
-  App-owned button scripts and power-user button edits also ship here.
+  App-owned tool-window scripts and power-user button text also ship here.
 - ``data/user_toolbar.json`` (ignored): every per-machine end-user edit --
-  main-toolbar entries, plus any user-changed default value, label, or column
-  layout for the app and its tool windows. Only values that differ from the
-  shipped file are stored, so shipped changes still reach everything the user
-  did not touch.
+  main-toolbar entries, tool-window script overrides (see
+  ``core/script_overrides``), plus any user-changed default value, label, or
+  column layout for the app and its tool windows. Only values that differ from
+  the shipped file are stored, so shipped changes still reach everything the
+  user did not touch.
 
-``save_config`` routes scripts and power-user button edits to the tracked
-config, and every other user-edited value to the ignored user file. Updates
-hard-reset tracked files, so end-user preferences must never live there.
+``save_config`` routes main-toolbar scripts and power-user button text to the
+tracked config, and every other user-edited value to the ignored user file.
+Tool-window scripts are personal overrides and are recorded by
+``core/script_overrides``, never by this split. Updates hard-reset tracked
+files, so end-user preferences must never live there.
 
 Layout, however, is NOT config-driven on purpose (see sap_toolbar.py).
 """
@@ -57,21 +60,37 @@ def _read_json_file(path: Path) -> dict:
 
 
 def load_config(path: Path | None = None, user_path: Path | None = None) -> dict:
-    """The shipped config with the user's main-toolbar overrides applied.
+    """The shipped config with the user's overrides applied.
 
     An explicit ``path`` is treated as a standalone file for tests and tools:
     the user layer is only merged for the real, default config.
     """
     resolved = _resolve(path)
-    data = _read_json_file(resolved)
+    shipped = _read_json_file(resolved)
     if path is not None and user_path is None:
-        return data
-    if not isinstance(data.get("customcomponents"), dict):
-        return data
+        return shipped
+    if not isinstance(shipped.get("customcomponents"), dict):
+        return shipped
     overrides = _load_overrides(_resolve_user(user_path))
-    if not overrides:
-        return data
-    return _merge(data, overrides)
+    merged = _merge(shipped, overrides) if overrides else shipped
+    from . import script_overrides
+
+    return script_overrides.apply_overrides(merged, shipped, user_path)
+
+
+def load_shipped_config(path: Path | None = None) -> dict:
+    """The tracked config exactly as shipped, without the user layer."""
+    return _read_json_file(_resolve(path))
+
+
+def load_user_file(user_path: Path | None = None) -> dict:
+    """The raw ignored user file; empty when missing or unreadable."""
+    return _load_overrides(_resolve_user(user_path))
+
+
+def save_user_file(data: dict, user_path: Path | None = None) -> None:
+    """Atomically write the ignored user file."""
+    _write_json(_resolve_user(user_path), data)
 
 
 def save_config(
@@ -84,6 +103,11 @@ def save_config(
         data.get("customcomponents"), dict
     ):
         app_data, overrides = _split(data, _resolve(path))
+        # Keep sections owned by other modules (e.g. script_overrides).
+        existing_user = _load_overrides(_resolve_user(user_path))
+        for key, value in existing_user.items():
+            if key != "customcomponents":
+                overrides[key] = copy.deepcopy(value)
         _write_json(_resolve(path), app_data)
         _write_json(_resolve_user(user_path), overrides)
         return
@@ -173,14 +197,29 @@ def _split(data: dict, shipped_path: Path) -> tuple[dict, dict]:
                 continue
 
             if component_type == "buttons":
-                # Tool-window buttons are power-user only; their edits are
-                # development changes and belong in the shipped config.
-                difference = _diff(entry, base)
+                # Tool-window button text is a power-user development change
+                # and ships. Its script is a personal override owned by
+                # core/script_overrides, so this split never writes it.
+                if isinstance(entry, dict):
+                    editable = {
+                        key: value for key, value in entry.items()
+                        if key != "script"
+                    }
+                else:
+                    editable = entry
+                if isinstance(base, dict):
+                    base_editable = {
+                        key: value for key, value in base.items()
+                        if key != "script"
+                    }
+                else:
+                    base_editable = base
+                difference = _diff(editable, base_editable)
                 if difference is not _MISSING:
                     if isinstance(base, dict):
                         app_entries[entry_id].update(copy.deepcopy(difference))
                     else:
-                        app_entries[entry_id] = copy.deepcopy(entry)
+                        app_entries[entry_id] = copy.deepcopy(editable)
                 continue
 
             script = entry.get("script", _MISSING)

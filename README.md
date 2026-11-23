@@ -1,5 +1,10 @@
 # SAP Work Order Tool
 
+## 2026.11.23.1 — 2026-11-23
+
+- Editing a main-toolbar button no longer disappears when the docked toolbar auto-hides.
+- Tool-window scripts can be customised per PC and survive updates. Settings → Tool windows shows which scripts differ, a diff against the shipped script, and a reset for one script or the whole tool. Local changes are re-applied automatically where possible; a collision is flagged for review.
+
 ## 2026.11.22.4 — 2026-11-22
 
 - Settings, the Helpers card and the Update tab follow the chosen tool-window language (Dutch, French, English and Spanish).

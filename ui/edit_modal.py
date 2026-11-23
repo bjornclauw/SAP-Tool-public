@@ -160,9 +160,17 @@ class EditModal(tk.Toplevel):
         config_data: dict,
         save_callback: Callable[[dict[str, Any]], None],
     ):
-        """Create an EditModal from a widget with stored metadata."""
+        """Create an EditModal from a widget with stored metadata.
+
+        The modal is parented to the widget's toplevel, not the widget itself.
+        A Toplevel created from a button inside a frame is not a direct child
+        of the root, so the dock's owned-dialog check would miss it and the
+        docked bar could auto-hide (and take the modal with it).
+        """
         data = config_data.get("customcomponents", {}).get(component_type, {}).get(button_id, {})
-        return cls(parent, component_type, data, save_callback, title=button_id)
+        return cls(
+            parent.winfo_toplevel(), component_type, data, save_callback,
+            title=button_id)
 
     # ---- layout --------------------------------------------------------
     def _build_form(self):

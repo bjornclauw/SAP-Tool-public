@@ -13,7 +13,8 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import messagebox, ttk
 
-from core import i18n, user_settings
+from core import config as cfg
+from core import i18n, script_overrides, user_settings
 from core.updater import read_version
 
 from . import ui_styles
@@ -104,6 +105,7 @@ class SettingsWindow(tk.Toplevel):
         self._power_trace = None
         self._power_after = None
         self._update_pane = None
+        self._script_diff_win = None
 
         self.withdraw()
         self.title(i18n.t("settings.title", "Settings"))
@@ -138,6 +140,12 @@ class SettingsWindow(tk.Toplevel):
             pass
         if self._update_pane is not None:
             self._update_pane.close()
+        if self._script_diff_win is not None:
+            try:
+                self._script_diff_win.close()
+            except tk.TclError:
+                pass
+            self._script_diff_win = None
         if self._power_after is not None:
             try:
                 self.after_cancel(self._power_after)
@@ -626,6 +634,7 @@ class SettingsWindow(tk.Toplevel):
             ).pack(fill="x", pady=1)
 
         self._build_preview(frame, details.get("screenshot"))
+        self._build_scripts(frame, key)
         self._detail_note = tk.Label(
             frame, text="", font=FONTS["small"], bg=COLORS["bg"],
             fg=COLORS["text_secondary"], anchor="w", justify="left",
@@ -710,6 +719,77 @@ class SettingsWindow(tk.Toplevel):
                 state="normal" if needs_power else "disabled",
                 fg=COLORS["text"] if needs_power else COLORS["text_disabled"],
             )
+
+    def _build_scripts(self, parent, key: str):
+        """The compact modified-scripts row, only for tools with overrides."""
+        statuses = script_overrides.statuses_for_tool(key)
+        if not statuses:
+            return
+        review = any(
+            status == script_overrides.STATUS_REVIEW
+            for _script, status in statuses.values())
+        count = len(statuses)
+        buttons = cfg.load_shipped_config().get("customcomponents", {}).get(
+            "buttons", {})
+        names = ", ".join(
+            str(buttons.get(button_id, {}).get("script_name") or button_id)
+            for button_id in statuses)
+        if review:
+            text = i18n.t(
+                "settings.scripts.summary_review",
+                "Scripts: {count} modified — {names} · default changed",
+                count=count, names=names)
+        else:
+            text = i18n.t(
+                "settings.scripts.summary",
+                "Scripts: {count} modified — {names}",
+                count=count, names=names)
+        row = tk.Frame(parent, bg=COLORS["bg"])
+        row.pack(fill="x", pady=(SPACING["tight"], 0))
+        styled_button(
+            row, i18n.t("settings.scripts.view_diff", "View diff"),
+            command=lambda k=key: self._open_script_diff(k),
+        ).pack(side="right", anchor="n")
+        styled_label(
+            row, text, font=FONTS["small"],
+            fg=COLORS["warning"] if review else COLORS["text_secondary"],
+            bg=COLORS["bg"], wraplength=420, justify="left", anchor="w",
+        ).pack(side="left", fill="x", expand=True)
+
+    def _open_script_diff(self, key: str):
+        from .script_diff_window import ScriptDiffWindow
+
+        if not script_overrides.statuses_for_tool(key):
+            return
+        if self._script_diff_win is not None:
+            try:
+                if self._script_diff_win.winfo_exists():
+                    self._script_diff_win.close()
+            except tk.TclError:
+                pass
+            self._script_diff_win = None
+        window = ScriptDiffWindow(
+            self, key,
+            on_close=self._on_script_diff_closed,
+            on_change=self._on_script_diff_changed,
+            config_data=self.toolbar.config_data,
+        )
+        try:
+            alive = bool(window.winfo_exists())
+        except tk.TclError:
+            alive = False
+        self._script_diff_win = window if alive else None
+
+    def _on_script_diff_changed(self):
+        try:
+            if self.winfo_exists() and self._tab == "tools":
+                self._select_tool(self._selected_tool)
+        except tk.TclError:
+            pass
+
+    def _on_script_diff_closed(self):
+        self._script_diff_win = None
+        self._on_script_diff_changed()
 
     def _build_preview(self, parent, filename: str | None):
         # Fixed stage: the button below must not move when a tool's screenshot
