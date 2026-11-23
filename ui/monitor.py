@@ -27,6 +27,9 @@ import sys
 
 _MONITOR_DEFAULTTONEAREST = 2
 _MDT_EFFECTIVE_DPI = 0
+_GA_ROOT = 2
+_GWL_EXSTYLE = -20
+_WS_EX_TOPMOST = 0x00000008
 # DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: used only for short read-only
 # probes, so an unaware process can see real pixels and the real monitor DPI.
 _DPI_CONTEXT_PER_MONITOR_V2 = ctypes.c_void_p(-4)
@@ -75,6 +78,16 @@ if sys.platform == "win32":
         _user32.SetThreadDpiAwarenessContext.restype = ctypes.c_void_p
     except AttributeError:
         pass  # pre-Windows 10 1703
+    _user32.GetAncestor.argtypes = [ctypes.c_void_p, ctypes.c_uint]
+    _user32.GetAncestor.restype = ctypes.c_void_p
+    try:
+        _user32.GetWindowLongPtrW.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        _user32.GetWindowLongPtrW.restype = ctypes.c_ssize_t
+        _get_window_long = _user32.GetWindowLongPtrW
+    except AttributeError:  # 32-bit Windows
+        _user32.GetWindowLongW.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        _user32.GetWindowLongW.restype = ctypes.c_long
+        _get_window_long = _user32.GetWindowLongW
     _shcore.GetDpiForMonitor.argtypes = [
         ctypes.c_void_p, ctypes.c_int,
         ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_uint)]
@@ -85,6 +98,7 @@ if sys.platform == "win32":
 else:
     _user32 = None
     _shcore = None
+    _get_window_long = None
 
 
 def work_area_of(widget) -> tuple[int, int, int, int]:
@@ -136,6 +150,23 @@ def system_dpi() -> int:
         return int(_user32.GetDpiForSystem()) or 0
     except Exception:
         return 0
+
+
+def is_topmost(hwnd) -> bool:
+    """Whether the window behind ``hwnd`` is in the topmost band.
+
+    Tk's ``winfo_id`` is a child of the native top-level, so walk to the root
+    first. Reading the ex-style avoids calling ``attributes("-topmost", True)``
+    when it is already set: that SetWindowPos resets the virtualized scale of
+    a DPI-unaware window on a scaled monitor.
+    """
+    if _user32 is None or _get_window_long is None or not hwnd:
+        return False
+    try:
+        root = _user32.GetAncestor(hwnd, _GA_ROOT) or hwnd
+        return bool(_get_window_long(root, _GWL_EXSTYLE) & _WS_EX_TOPMOST)
+    except Exception:
+        return False
 
 
 def physical_window_rect(hwnd) -> tuple[int, int, int, int, int] | None:

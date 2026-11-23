@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.23.12 — 2026-11-23
+
+- The docked toolbar keeps its size and position when a helper is dragged between monitors with different display scaling; the periodic topmost re-assert no longer resets its scale.
+
 ## 2026.11.23.11 — 2026-11-23
 
 - The temporary Dock Diagnostic now records the real physical window size and monitor DPI, and can switch the topmost watch off to isolate a repaint problem.

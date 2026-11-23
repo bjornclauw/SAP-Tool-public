@@ -28,7 +28,7 @@ import threading
 import tkinter as tk
 from pathlib import Path
 
-from .monitor import work_area_of
+from .monitor import is_topmost, work_area_of
 
 HOTKEY_ID = 0x5A17
 HOTKEY_MOD = 0x0001 | 0x0002  # MOD_ALT | MOD_CONTROL
@@ -46,8 +46,9 @@ PEEK_FADE_STEPS = 7
 # Hover dwell on the collapsed pill before the bar restores: a quick pass
 # across the top edge must not pop the toolbar open.
 PEEK_SHOW_DELAY_MS = 200
-# Windows drops -topmost across withdraw/deiconify and when a helper takes
-# focus; re-assert it periodically while docked.
+# Windows can lose -topmost across withdraw/deiconify or a chrome toggle.
+# Check slowly, but re-apply only when it is actually gone: an unconditional
+# SetWindowPos resets the DPI scale of an unaware window on a scaled monitor.
 TOPMOST_WATCH_MS = 2000
 # A modal grab routes pointer events away from the pill, so poll the pointer
 # while the pill is visible instead of relying on its <Enter> binding.
@@ -254,39 +255,40 @@ class DockManager:
 
     # ---- dock --------------------------------------------------------
     def _assert_topmost(self):
-        """Re-apply topmost to the docked bar and the pill.
+        """Re-apply topmost only when Windows actually lost it.
 
-        Windows drops the attribute across withdraw/deiconify cycles and when
-        another window focuses, so every transition (and a slow watch) calls
-        this instead of relying on the one-off set at creation. An open
-        combobox popdown is left alone: changing z-order under it can close
-        the dropdown while the user is choosing.
+        Unconditionally setting ``-topmost`` calls SetWindowPos, and for a
+        DPI-unaware process that resets the virtualized scale of a window on
+        a scaled monitor: the docked bar shrank and shifted left while a
+        helper was dragged between monitors. Reading the native ex-style
+        keeps the watch a no-op while the style is intact. An open combobox
+        popdown is left alone: changing z-order under it can close the
+        dropdown while the user is choosing.
         """
         if not self.dock_enabled.get() or self._popup_grab_active():
             return
-        peek = self._peek
-        # Windows can snap an overrideredirect Toplevel back to +0+0 when
-        # -topmost is re-applied while the docked root is withdrawn; remember
-        # the pill's geometry and put it back.
-        geometry = None
-        if peek is not None:
+        if not is_topmost(self.root.winfo_id()):
             try:
-                if peek.winfo_exists():
-                    geometry = peek.geometry()
-            except Exception:
-                geometry = None
-        try:
-            self.root.attributes("-topmost", True)
-        except Exception:
-            pass
-        if peek is not None:
-            try:
-                if peek.winfo_exists():
-                    peek.attributes("-topmost", True)
-                    if geometry:
-                        peek.geometry(geometry)
+                self.root.attributes("-topmost", True)
             except Exception:
                 pass
+        peek = self._peek
+        if peek is None:
+            return
+        try:
+            if not peek.winfo_exists() or is_topmost(peek.winfo_id()):
+                return
+            # Windows can snap an overrideredirect Toplevel back to +0+0 when
+            # -topmost is re-applied; remember its geometry and put it back.
+            geometry = peek.geometry()
+        except Exception:
+            return
+        try:
+            peek.attributes("-topmost", True)
+            if geometry:
+                peek.geometry(geometry)
+        except Exception:
+            pass
 
     def _start_topmost_watch(self):
         if self._topmost_id is None:
@@ -367,7 +369,7 @@ class DockManager:
             x = mx + max(0, (mw - w) // 2)
             self.root.geometry(f"+{x}+{my}")
             self.root.update_idletasks()  # let the WM commit before we read back
-            self.root.attributes("-topmost", True)
+            self._assert_topmost()
         except Exception:
             pass
 
