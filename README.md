@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.23.9 — 2026-11-23
+
+- The docked bar animates to its packed size after a helper moves or the tray changes, instead of briefly using an old size.
+
 ## 2026.11.23.8 — 2026-11-23
 
 - The docked toolbar also re-centres itself if it drifts off its monitor's centre.

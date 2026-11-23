@@ -98,6 +98,8 @@ class DockDiagWindow(BaseToolWindow):
             ("Stop", self._stop),
             ("Copy log", self._copy),
             ("Open data folder", self._open_folder),
+            ("Pin bar", self._pin_bar),
+            ("Auto-hide", self._auto_hide),
         ):
             styled_button(buttons, text, command=command).pack(
                 side="left", padx=(0, ui_styles.SPACING["tight"]))
@@ -174,6 +176,24 @@ class DockDiagWindow(BaseToolWindow):
             self.report_status("Dock diagnostic copied", "success")
         except tk.TclError:
             pass
+
+    def _pin_bar(self):
+        dock = getattr(self.master, "dock", None)
+        if dock is None or not dock.dock_enabled.get():
+            self.report_status("Dock the toolbar first", "warning")
+            return
+        dock.autohide.set(False)
+        dock.apply()
+        dock._show_main(animate=False, focus=False)
+        self.report_status("Dock bar pinned open", "info")
+
+    def _auto_hide(self):
+        dock = getattr(self.master, "dock", None)
+        if dock is None:
+            return
+        dock.autohide.set(True)
+        dock.apply()
+        self.report_status("Dock auto-hide restored", "info")
 
     def _open_folder(self):
         path = self._log_path.parent if self._log_path else APP_ROOT / "data"

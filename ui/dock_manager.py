@@ -607,17 +607,12 @@ class DockManager:
         target = self._parse_geometry(self._saved_geometry or "")
         try:
             self.root.update_idletasks()
-            # While hidden, winfo_height still reports the height the bar had
-            # when it withdrew. The packed layout may be shorter now (the OPEN
-            # tray collapsed), so measure the requested size instead.
-            if self.root.winfo_ismapped():
-                w = self.root.winfo_width()
-                h = self.root.winfo_height()
-            else:
-                w = self.root.winfo_reqwidth()
-                h = self.root.winfo_reqheight()
-            w = w or self.root.winfo_reqwidth() or 800
-            h = h or self.root.winfo_reqheight() or 200
+            # Always animate to the packed size. While hidden the old width
+            # can be stale; while visible a helper/tray update can have left
+            # an explicit size behind. Either way the requested size is the
+            # only correct target, and the final _release_size keeps it.
+            w = self.root.winfo_reqwidth() or 800
+            h = self.root.winfo_reqheight() or 200
             mx, my, mw, _mh = work_area_of(self.root)
         except Exception:
             w, h, mx, my, mw = 800, 200, 0, 0, 1920
