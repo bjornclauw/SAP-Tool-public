@@ -5,10 +5,11 @@ anything positioned from them (dock centering, new-window placement)
 lands wrong on multi-monitor setups. This resolves the work area
 (monitor minus taskbar) of the monitor nearest a widget.
 
-DPI note: ctypes reports PHYSICAL pixels while Tk geometry uses LOGICAL
-ones (at 150% scaling, 1920 physical == 1280 logical). The divisor is
-the window's own DPI via GetDpiForWindow (/96), which is correct
-per-monitor even with mixed-DPI setups.
+DPI note: only a per-monitor-aware process sees raw physical monitor
+rectangles while Tk 8.6 keeps laying out in its 96-DPI space, so only
+that mode divides by the window's DPI. An unaware process gets 96 from
+GetDpiForWindow and a system-aware process gets virtualized, already
+scaled rectangles; dividing those would shrink the work area.
 
 Never raises: off Windows (or on any error) it falls back to the
 primary screen dims at origin.
@@ -61,6 +62,24 @@ def work_area_of(widget) -> tuple[int, int, int, int]:
         return fallback
 
 
+def _process_awareness() -> int:
+    """PROCESS_DPI_AWARENESS (0 unaware, 1 system, 2 per-monitor)."""
+    try:
+        value = ctypes.c_int()
+        ctypes.windll.shcore.GetProcessDpiAwareness(
+            None, ctypes.byref(value))
+        return value.value
+    except Exception:
+        return 0
+
+
+def _dpi_scale(awareness: int, dpi: int) -> float:
+    """Physical-to-Tk scaling, only when Tk is stuck at 96 DPI."""
+    if awareness == 2:
+        return (dpi or 96) / 96.0
+    return 1.0
+
+
 def _windows_work_area(widget) -> tuple[int, int, int, int] | None:
     """ctypes route: MonitorFromWindow + GetMonitorInfo + per-window DPI."""
     user32 = ctypes.windll.user32
@@ -76,9 +95,7 @@ def _windows_work_area(widget) -> tuple[int, int, int, int] | None:
         dpi = int(user32.GetDpiForWindow(hwnd)) or 96
     except Exception:
         dpi = 96
-    scale = dpi / 96.0
-    if not scale:
-        scale = 1.0
+    scale = _dpi_scale(_process_awareness(), dpi)
     left, top = mi.rcWork.left, mi.rcWork.top
     return (
         int(left / scale),

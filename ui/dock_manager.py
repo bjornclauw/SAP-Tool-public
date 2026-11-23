@@ -112,6 +112,7 @@ class DockManager:
         self._toast_msg = ""
         self._was_docked = False
         self._saved_geometry: str = ""
+        self._saved_area: tuple[int, int, int, int] | None = None
         # Slide+fade animation state. _anim_id is the pending frame (None
         # when idle); _anim_gen invalidates stale frames so a reversed
         # animation can never fight the one that replaced it.
@@ -130,8 +131,18 @@ class DockManager:
         """(Re)apply dock + autohide state. Call after geometry is known."""
         now_docked = bool(self.dock_enabled.get())
         if now_docked:
+            # Capture the monitor before the borderless toggle: Windows can
+            # move an overrideredirect window, which would make the later
+            # work-area lookup pick the wrong monitor. A hidden root uses the
+            # area stored when it withdrew; a visible one is still trustworthy.
+            area = self._saved_area if self._is_hidden() else None
+            area = area or work_area_of(self.root)
             self._set_chrome(True)
-            self._snap_top()
+            # Drop any WxH left by an interrupted show animation. Without
+            # this, docking keeps the stale size and _snap_top centres the
+            # bar from that wrong width.
+            self._release_size()
+            self._snap_top(area)
             self._ensure_hotkey()  # hotkey works whenever docked
             self._start_topmost_watch()
             if not self.autohide.get():
@@ -309,16 +320,17 @@ class DockManager:
             self._topmost_id = None
         self._stop_grab_watch()
 
-    def _snap_top(self):
+    def _snap_top(self, area: tuple[int, int, int, int] | None = None):
         """Center on the top edge OF THE TOOLBAR'S OWN MONITOR (not the
         primary -- winfo_screenwidth lies on multi-monitor setups).
         Position-only: the bar keeps whatever size pack computes, so a
         tray unfolding later can grow it downward instead of squeezing
-        its content to unmapped."""
+        its content to unmapped. Callers pass ``area`` when the window may
+        have moved during a chrome toggle."""
         try:
             self.root.update_idletasks()
             w = self.root.winfo_width() or self.root.winfo_reqwidth() or 800
-            mx, my, mw, _mh = work_area_of(self.root)
+            mx, my, mw, _mh = area if area is not None else work_area_of(self.root)
             x = mx + max(0, (mw - w) // 2)
             self.root.geometry(f"+{x}+{my}")
             self.root.update_idletasks()  # let the WM commit before we read back
@@ -457,6 +469,7 @@ class DockManager:
         if not animate:
             try:
                 self._saved_geometry = self.root.geometry()
+                self._saved_area = work_area_of(self.root)
                 self.root.withdraw()
             except Exception:
                 return
@@ -471,9 +484,11 @@ class DockManager:
             if w <= 1 or h <= 1:
                 raise ValueError("no geometry yet")
             self._saved_geometry = self.root.geometry()
+            self._saved_area = work_area_of(self.root)
         except Exception:
             try:
                 self._saved_geometry = self.root.geometry()
+                self._saved_area = work_area_of(self.root)
                 self.root.withdraw()
             except Exception:
                 return
@@ -842,7 +857,7 @@ class DockManager:
             return
         try:
             self._peek.update_idletasks()
-            mx, my, mw, _mh = work_area_of(self.root)
+            mx, my, mw, _mh = self._saved_area or work_area_of(self.root)
             w = self._peek_inner.winfo_reqwidth() + 20
             h = max(self._peek_inner.winfo_reqheight() + 4, PEEK_HEIGHT)
             self._peek.geometry(f"{w}x{h}+{mx + max(0, (mw - w) // 2)}+{my}")
@@ -859,7 +874,7 @@ class DockManager:
 
         self._destroy_peek()
         try:
-            mx, my, mw, _mh = work_area_of(self.root)
+            mx, my, mw, _mh = self._saved_area or work_area_of(self.root)
             peek = tk.Toplevel(self.root)
             peek.overrideredirect(True)
             peek.attributes("-topmost", True)

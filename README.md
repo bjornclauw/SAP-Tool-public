@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.23.4 — 2026-11-23
+
+- Docking no longer keeps a stale window size or offset after a helper was open; the bar returns at its packed size, centred on its own monitor.
+
 ## 2026.11.23.3 — 2026-11-23
 
 - The collapsed docked toolbar now restores after 200 ms of hover.
