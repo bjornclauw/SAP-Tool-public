@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.24.3 — 2026-11-24
+
+- If a PC's bundled Python package installer is damaged, Update now repairs it automatically and retries the offline dependency installation.
+
 ## 2026.11.24.2 — 2026-11-24
 
 - Print Orders still opens and normal merging still works when the optional team-summary packages are missing; enabling team summaries now explains exactly which packages to install.

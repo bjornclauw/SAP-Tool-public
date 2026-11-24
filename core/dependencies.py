@@ -72,28 +72,47 @@ def _python_executable() -> str:
     return str(console) if console.is_file() else str(executable)
 
 
-def run_pip(root: Path, args: list[str]) -> str:
-    """Run pip with the portable interpreter and no console window."""
+def _invoke_python(root: Path, args: list[str], timeout: int = 180):
     try:
-        result = subprocess.run(
-            [_python_executable(), "-m", "pip", *args],
+        return subprocess.run(
+            [_python_executable(), "-m", *args],
             cwd=str(root),
             capture_output=True,
             text=True,
-            timeout=180,
+            timeout=timeout,
             creationflags=int(getattr(subprocess, "CREATE_NO_WINDOW", 0)),
         )
     except FileNotFoundError as exc:
-        raise DependencyError("The portable Python pip module is not available.") from exc
+        raise DependencyError("The portable Python module runner is not available.") from exc
     except subprocess.TimeoutExpired as exc:
         raise DependencyError("Dependency installation timed out.") from exc
+
+
+def _failure_detail(result, fallback: str) -> str:
+    lines = [
+        line.strip()
+        for line in (result.stderr or result.stdout).splitlines()
+        if line.strip()
+    ]
+    return lines[-1] if lines else fallback
+
+
+def run_pip(root: Path, args: list[str]) -> str:
+    """Run pip, repairing a broken portable pip with ensurepip when needed."""
+    result = _invoke_python(root, ["pip", *args])
+    detail = _failure_detail(result, "pip failed")
+    if result.returncode != 0 and (
+        "pip._internal" in detail or "No module named 'pip'" in detail
+    ):
+        repair = _invoke_python(root, ["ensurepip", "--upgrade"], timeout=120)
+        if repair.returncode != 0:
+            raise DependencyError(
+                "pip is broken and ensurepip could not repair it: "
+                + _failure_detail(repair, "ensurepip failed")
+            )
+        result = _invoke_python(root, ["pip", *args])
+        detail = _failure_detail(result, "pip failed")
     if result.returncode != 0:
-        lines = [
-            line.strip()
-            for line in (result.stderr or result.stdout).splitlines()
-            if line.strip()
-        ]
-        detail = lines[-1] if lines else "pip failed"
         raise DependencyError(detail)
     return result.stdout
 
