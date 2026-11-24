@@ -2,6 +2,8 @@
   "main.settings.language": "Idioma",
   "main.settings.language_auto": "Automático (Windows)",
   "main.settings.language_note": "Se aplica a las nuevas ventanas de herramientas.",
+  "dependencies.title": "Dependencias de ejecución",
+  "dependencies.restart_failed": "No se pudieron instalar las dependencias: {error}\n\nReinicie la aplicación e inténtelo de nuevo.",
   "print_orders.title": "Print Orders",
   "print_orders.iw32_status": "Estado",
   "print_orders.iw32_start": "Inicio previsto",

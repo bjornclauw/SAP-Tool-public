@@ -27,6 +27,7 @@ APP_ROOT = Path(__file__).resolve().parent.parent
 VERSION_FILE = "VERSION"
 DEFAULT_UPSTREAM = "origin/master"
 STATE_FILE = Path("data") / "update_state.json"
+PENDING_FILE = Path("data") / "pending_dependencies.json"
 
 _RELEASE_HEADING = re.compile(
     r"^##\s+(\d{4}\.\d{2}\.\d{2}(?:\.\d+)?)\s*[—–-]\s*(\d{4}-\d{2}-\d{2})\s*$",
@@ -222,10 +223,40 @@ def _parse_log(output: str) -> list[CommitInfo]:
     return commits
 
 
+def _pending_path(root: Path) -> Path:
+    return root / PENDING_FILE
+
+
+def _write_pending(root: Path, error: str) -> None:
+    try:
+        path = _pending_path(root)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"error": error}, indent=2), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _clear_pending(root: Path) -> None:
+    try:
+        _pending_path(root).unlink()
+    except OSError:
+        pass
+
+
+def _ensure_with_pending(root: Path) -> tuple[str, ...]:
+    try:
+        installed = dependencies.ensure_dependencies(root)
+    except dependencies.DependencyError as exc:
+        _write_pending(root, str(exc))
+        raise
+    _clear_pending(root)
+    return installed
+
+
 def apply_update(
     root: Path | str = APP_ROOT,
     git: GitRunner = run_git,
-    deps_fn: DependencyInstaller = dependencies.ensure_dependencies,
+    deps_fn: DependencyInstaller = _ensure_with_pending,
     on_dependencies: Callable[[], None] | None = None,
 ) -> str:
     """Fetch and hard-reset the tracked files to the upstream tip.
@@ -268,7 +299,7 @@ def apply_update(
     except dependencies.DependencyError as exc:
         raise DependencyUpdateError(
             f"Version {version} was installed, but dependencies failed: {exc}. "
-            "Use Retry dependencies."
+            "Use Retry dependencies or restart the app."
         ) from exc
     state["dependencies"] = list(installed)
     state["deps_lock_sha"] = dependencies.lock_hash(root)
@@ -293,7 +324,7 @@ def previous_update(root: Path | str = APP_ROOT) -> dict | None:
 def revert_update(
     root: Path | str = APP_ROOT,
     git: GitRunner = run_git,
-    deps_fn: DependencyInstaller = dependencies.ensure_dependencies,
+    deps_fn: DependencyInstaller = _ensure_with_pending,
     on_dependencies: Callable[[], None] | None = None,
 ) -> str:
     """Hard-reset to the version recorded before the last update."""
@@ -313,7 +344,7 @@ def revert_update(
     except dependencies.DependencyError as exc:
         raise DependencyUpdateError(
             f"Reverted to {version}, but dependencies failed: {exc}. "
-            "Use Retry dependencies."
+            "Use Retry dependencies or restart the app."
         ) from exc
     try:
         _state_path(root).unlink()
@@ -328,8 +359,29 @@ def missing_dependencies(root: Path | str = APP_ROOT) -> tuple[str, ...]:
 
 
 def retry_dependencies(root: Path | str = APP_ROOT) -> tuple[str, ...]:
-    """Retry only the managed dependency installation after an update/revert."""
-    return dependencies.ensure_dependencies(Path(root))
+    """Retry managed dependencies, recording a restart when files are locked."""
+    return _ensure_with_pending(Path(root))
+
+
+def finish_pending_dependencies(root: Path | str = APP_ROOT) -> str | None:
+    """Finish a locked dependency install before the next app UI opens."""
+    root = Path(root)
+    state = previous_update(root)
+    pending = _pending_path(root).exists()
+    incomplete_state = bool(
+        state and state.get("deps_lock_sha") and not state.get("dependencies")
+    )
+    if not pending and not incomplete_state:
+        return None
+    try:
+        installed = _ensure_with_pending(root)
+    except dependencies.DependencyError as exc:
+        return str(exc)
+    if state:
+        state["dependencies"] = list(installed)
+        state["deps_lock_sha"] = dependencies.lock_hash(root)
+        _write_state(root, state)
+    return None
 
 
 def _state_path(root: Path | str) -> Path:

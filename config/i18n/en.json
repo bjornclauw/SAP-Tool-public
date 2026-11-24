@@ -2,6 +2,8 @@
   "main.settings.language": "Language",
   "main.settings.language_auto": "Automatic (Windows)",
   "main.settings.language_note": "Applies to newly opened tool windows.",
+  "dependencies.title": "Runtime dependencies",
+  "dependencies.restart_failed": "Dependencies could not be installed: {error}\n\nRestart the app and try again.",
   "print_orders.title": "Print Orders",
   "print_orders.iw32_status": "Status",
   "print_orders.iw32_start": "Planned start",

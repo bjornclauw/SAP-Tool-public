@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.24.5 — 2026-11-24
+
+- If Windows locks a package file during Update, the app now remembers the pending installation and finishes it after a restart, before opening the tool windows.
+
 ## 2026.11.24.4 — 2026-11-24
 
 - Runtime dependencies are now installed directly from verified wheels, so a damaged or missing pip installation can no longer block Planner or Print Orders updates.
