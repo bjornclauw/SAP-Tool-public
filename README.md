@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.24.4 — 2026-11-24
+
+- Runtime dependencies are now installed directly from verified wheels, so a damaged or missing pip installation can no longer block Planner or Print Orders updates.
+
 ## 2026.11.24.3 — 2026-11-24
 
 - If a PC's bundled Python package installer is damaged, Update now repairs it automatically and retries the offline dependency installation.
