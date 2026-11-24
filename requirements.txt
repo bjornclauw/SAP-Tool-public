@@ -1,4 +1,4 @@
-# No external dependencies required for mock mode
+# Portable Python dependencies are documented below.
 # pywinstyles is optional (only needed for colored title bars on Windows)
 # pip install pywinstyles  # if you want colored title bars
 #
@@ -9,3 +9,7 @@
 # customtkinter — the Planner window's lifted board:
 #   python/python-3.11.8.amd64/python.exe -m pip install customtkinter
 customtkinter>=5.2
+
+# reportlab — Print Orders workcenter summary pages:
+#   python/python-3.11.8.amd64/python.exe -m pip install reportlab
+reportlab>=4.0

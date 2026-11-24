@@ -39,6 +39,8 @@ from core import i18n, sap_fields, user_settings
 from tools.grid_column_manager import GridColumnManager as GridManager
 from tools.print_history import PrintHistoryStore
 from tools.print_history_view import PrintHistoryPane
+from tools.print_order_assets import retain_cover_image
+from tools.print_orders_packet import build_packet
 from ui import ui_styles
 from ui.custom_widgets import BaseToolWindow, CustomButton
 from ui.edit_modal import EditModal
@@ -214,6 +216,7 @@ class PrintOrdersWindow(BaseToolWindow):
         self._load_po_settings()
 
         self._processing = False
+        self._merging = False
         self._paused = False
         self._stop_requested = False
         self._loading = False
@@ -311,13 +314,46 @@ class PrintOrdersWindow(BaseToolWindow):
         layout = str(data.get("po_pdf_layout", "auto"))
         self._pdf_layout_var = tk.StringVar(
             value=layout if layout in ("auto", "1", "2", "4") else "auto")
+        self._group_by_workcenter = bool(data.get("po_group_by_workcenter", False))
+        self._group_by_workcenter_var = tk.BooleanVar(value=self._group_by_workcenter)
+        overrides = data.get("po_team_colors", {})
+        self._team_color_overrides = dict(overrides) if isinstance(overrides, dict) else {}
 
     def _save_po_settings(self):
         user_settings.update_user_settings({
             "po_stop_on_error": bool(self._stop_on_error_var.get()),
             "po_max_attachments": str(self._max_attach_var.get()),
             "po_pdf_layout": self._pdf_layout_var.get(),
+            "po_group_by_workcenter": bool(self._group_by_workcenter),
+            "po_team_colors": dict(self._team_color_overrides),
         })
+
+    def _toggle_group_by_workcenter(self):
+        self._group_by_workcenter = bool(self._group_by_workcenter_var.get())
+        self._save_po_settings()
+        self._refresh_action_state()
+
+    def _edit_team_colors(self):
+        teams = []
+        for item in self._all_items:
+            team = self._workcenter_for(item)
+            if team and team not in teams:
+                teams.append(team)
+        if not teams:
+            self.report_status(
+                i18n.t("print_orders.no_team_colors", "No workcenters available to configure"),
+                "warning")
+            return
+        from ui.team_color_dialog import TeamColorDialog
+
+        TeamColorDialog(
+            self, teams, self._team_color_overrides,
+            on_save=self._apply_team_colors)
+
+    def _apply_team_colors(self, overrides: dict):
+        self._team_color_overrides = dict(overrides)
+        self._save_po_settings()
+        self._refresh_action_state()
 
     def _cache_scripts(self):
         """Read SAP scripts from config once, use many times."""
@@ -422,6 +458,7 @@ class PrintOrdersWindow(BaseToolWindow):
 
         options_mb, options_menu = self._add_menu(
             bar, i18n.t("print_orders.options"))
+        self._options_mb = options_mb
         options_mb.pack(side="right")
         self._scripts_mb, scripts_menu = self._add_menu(
             bar, i18n.t("print_orders.scripts"))
@@ -459,6 +496,13 @@ class PrintOrdersWindow(BaseToolWindow):
             label=i18n.t("print_orders.stop_on_error"),
             variable=self._stop_on_error_var,
             command=self._save_po_settings)
+        options_menu.add_checkbutton(
+            label=i18n.t("print_orders.team_summary"),
+            variable=self._group_by_workcenter_var,
+            command=self._toggle_group_by_workcenter)
+        options_menu.add_command(
+            label=i18n.t("print_orders.team_colors"),
+            command=self._edit_team_colors)
         options_menu.add_separator()
         max_menu = tk.Menu(options_menu, tearoff=0)
         for value in range(1, 7):
@@ -1052,9 +1096,13 @@ class PrintOrdersWindow(BaseToolWindow):
         except tk.TclError:
             pass
 
-    @staticmethod
-    def _merge_signature(sources) -> tuple:
-        return tuple((str(order), str(path)) for order, path in sources)
+    def _merge_signature(self, sources) -> tuple:
+        colors = tuple(sorted(getattr(self, "_team_color_overrides", {}).items()))
+        return (
+            tuple((str(order), str(path)) for order, path in sources),
+            bool(getattr(self, "_group_by_workcenter", False)),
+            colors,
+        )
 
     def _visible_pending(self) -> list[str]:
         if self._order_missing:
@@ -1410,6 +1458,12 @@ class PrintOrdersWindow(BaseToolWindow):
 
         self._active_stem = self._pdf_stem(order, short_text)
         self._active_text = short_text
+        self._order_results[order] = {
+            "short_text": short_text,
+            "workcenter": self._workcenter_for(item),
+            "revision": self._revision_for(item),
+            "cover_image": None,
+        }
         self._set_status(item, self.STATUS_IN_PROGRESS)
         self._update_progress()
         self.update_idletasks()
@@ -1624,6 +1678,7 @@ class PrintOrdersWindow(BaseToolWindow):
         existing = self._overwrite_single
         if existing is None:
             existing = self._history.find_single_order(order)
+        result = self._order_results.get(order, {})
         try:
             if existing is not None:
                 folder = existing.get("folder") or self._new_single_dir(order)
@@ -1654,6 +1709,9 @@ class PrintOrdersWindow(BaseToolWindow):
                     "kind": "single",
                     "order": order,
                     "short_text": self._active_text,
+                    "workcenter": result.get("workcenter", ""),
+                    "revision": result.get("revision", ""),
+                    "cover_image": result.get("cover_image"),
                     "status": self.STATUS_DONE,
                     "file": file_name,
                     "error": "",
@@ -1672,6 +1730,9 @@ class PrintOrdersWindow(BaseToolWindow):
                     "kind": "single",
                     "order": order,
                     "short_text": self._active_text,
+                    "workcenter": result.get("workcenter", ""),
+                    "revision": result.get("revision", ""),
+                    "cover_image": result.get("cover_image"),
                     "status": self.STATUS_DONE,
                     "file": file_name,
                     "error": "",
@@ -1809,6 +1870,13 @@ class PrintOrdersWindow(BaseToolWindow):
             imgs.append(img)
         if not imgs:
             return ""
+        try:
+            cover = retain_cover_image(
+                order, paths, os.path.join(self._output_root, ".covers"))
+        except OSError:
+            cover = None
+        if cover:
+            self._order_results.setdefault(order, {})["cover_image"] = cover
 
         per = int(layout) if layout in ("1", "2", "4") else (
             1 if len(imgs) == 1 else 2 if len(imgs) == 2 else 4)
@@ -1905,30 +1973,83 @@ class PrintOrdersWindow(BaseToolWindow):
         if auto and self._run_kind == "batch" and len(sources) < 1:
             return
 
-        writer = PdfWriter()
+        records: list[dict] = []
         merged: list[tuple[str, str]] = []
         for order, path in sources:
             try:
-                reader = PdfReader(path)
+                PdfReader(path)
             except Exception:
                 continue
-            for page in reader.pages:
-                writer.add_page(page)
+            item = self._item_for_order(order)
+            result = self._order_results.get(order, {})
+            records.append({
+                "order": order,
+                "title": result.get("short_text") or self._short_text_for(item),
+                "workcenter": result.get("workcenter") or self._workcenter_for(item),
+                "revision": result.get("revision") or self._revision_for(item),
+                "cover_image": result.get("cover_image"),
+                "pdf_path": path,
+            })
             merged.append((order, path))
-            if len(writer.pages) % 2 == 1:
-                writer.add_blank_page()
-        if not writer.pages:
+        if not records:
             if not auto:
                 self.report_status("No readable PDFs to merge", "warning")
             return
 
+        if getattr(self, "_merging", False):
+            return
+        self._merging = True
         batch_dir, batch_file = self._batch_paths()
         os.makedirs(batch_dir, exist_ok=True)
+        revision = next((record["revision"] for record in records
+                         if record["revision"]), "")
+        date = self._run_started_day or datetime.now().strftime("%d.%m.%Y")
+        colors = dict(getattr(self, "_team_color_overrides", {}))
+        grouped = bool(getattr(self, "_group_by_workcenter", False))
+        temp_file = batch_file + ".building"
+        results: queue.Queue = queue.Queue()
+
+        def worker():
+            try:
+                info = build_packet(
+                    records, temp_file, revision=revision, date=date,
+                    color_overrides=colors, grouped=grouped,
+                )
+                results.put((temp_file, info, None))
+            except Exception as exc:
+                results.put(("", None, exc))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._collect_merge_result(results, batch_file, batch_dir, merged,
+                                   records, grouped, auto)
+
+    def _collect_merge_result(self, results: queue.Queue, batch_file: str,
+                              batch_dir: str, merged: list[tuple[str, str]],
+                              records: list[dict], grouped: bool, auto: bool):
+        if not self.winfo_exists():
+            return
         try:
-            with open(batch_file, "wb") as f:
-                writer.write(f)
+            temp_file, packet_info, error = results.get_nowait()
+        except queue.Empty:
+            self.after(50, lambda: self._collect_merge_result(
+                results, batch_file, batch_dir, merged, records, grouped, auto))
+            return
+
+        self._merging = False
+        if error or not temp_file:
+            if temp_file and os.path.exists(temp_file):
+                try:
+                    os.remove(temp_file)
+                except OSError:
+                    pass
+            self.report_status(f"Could not build merged PDF: {error}", "error")
+            self._refresh_action_state()
+            return
+        try:
+            os.replace(temp_file, batch_file)
         except OSError as exc:
             self.report_status(f"Could not write merged PDF: {exc}", "error")
+            self._refresh_action_state()
             return
 
         self._merged_file = batch_file
@@ -1937,14 +2058,14 @@ class PrintOrdersWindow(BaseToolWindow):
         if self._merged_link is not None:
             self._merged_link.config(text=name)
 
-        payload = []
-        for order, _path in merged:
-            result = self._order_results.get(order, {})
-            payload.append({
-                "order": order,
-                "short_text": result.get("short_text", ""),
-                "status": self.STATUS_DONE,
-            })
+        payload = [{
+            "order": record["order"],
+            "short_text": record["title"],
+            "workcenter": record["workcenter"],
+            "revision": record["revision"],
+            "cover_image": record["cover_image"],
+            "status": self.STATUS_DONE,
+        } for record in records]
         now = datetime.now()
         run = {
             "id": os.path.basename(batch_dir),
@@ -1956,6 +2077,8 @@ class PrintOrdersWindow(BaseToolWindow):
             "done": len(merged),
             "failed": 0,
             "orders": payload,
+            "grouped": grouped,
+            "team_order": packet_info["team_order"],
         }
         self._batch_run_id = run["id"]
         self._history.upsert_batch(run["id"], run)
@@ -1993,6 +2116,39 @@ class PrintOrdersWindow(BaseToolWindow):
         if 0 <= index < len(rows):
             return rows[index]
         return None
+
+    def _workcenter_for(self, item: str | None) -> str:
+        value = ""
+        if item is not None and self._column_map is not None:
+            row = self._stored_row(item)
+            if row is not None:
+                value = self._column_map.value("work_center", row)
+            else:
+                values = list(self.tree.item(item, "values"))
+                columns = list(self.tree["columns"])
+                header = self._column_map.header("work_center")
+                if header in columns:
+                    index = columns.index(header)
+                    if index < len(values):
+                        value = str(values[index]).strip()
+        if not value and (item is None or getattr(self, "_run_kind", "") == "single"):
+            value = str(self.engine.get_variable("po_iw_workplace", "")).strip()
+        return value
+
+    def _revision_for(self, item: str | None) -> str:
+        if item is None or self._column_map is None:
+            return ""
+        row = self._stored_row(item)
+        if row is not None:
+            return self._column_map.value("revision", row)
+        values = list(self.tree.item(item, "values"))
+        columns = list(self.tree["columns"])
+        header = self._column_map.header("revision")
+        if header in columns:
+            index = columns.index(header)
+            if index < len(values):
+                return str(values[index]).strip()
+        return ""
 
     def _short_text_for(self, item: str | None) -> str:
         if item is None or self._column_map is None:

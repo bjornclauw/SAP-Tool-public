@@ -24,7 +24,8 @@ Older entries from the previous schema are tolerated: ``file_path`` falls
 back to ``merged`` or the first order's ``workorder``/``attachments``.
 
 Only the latest 30 run folders are kept; older ones are deleted together
-with their history entries. Pure data logic, no UI.
+with their history entries. Unreferenced retained cover images are pruned with
+them. Pure data logic, no UI.
 """
 
 from __future__ import annotations
@@ -116,8 +117,26 @@ class PrintHistoryStore:
         self._data["runs"] = kept
         for run in dropped:
             self._remove_folder(run.get("folder", ""))
+        self._prune_covers()
         self.save()
         return dropped
+
+    def _prune_covers(self) -> None:
+        folder = os.path.join(self.output_root, ".covers")
+        if not os.path.isdir(folder):
+            return
+        referenced = set()
+        for run in self._data["runs"]:
+            paths = [run.get("cover_image", "")]
+            paths.extend(entry.get("cover_image", "")
+                         for entry in run.get("orders", []) or [])
+            referenced.update(os.path.basename(path) for path in paths if path)
+        for name in os.listdir(folder):
+            if name.endswith("_cover.png") and name not in referenced:
+                try:
+                    os.remove(os.path.join(folder, name))
+                except OSError:
+                    pass
 
     def _remove_folder(self, folder: str) -> None:
         if not folder or not _inside(folder, self.output_root):

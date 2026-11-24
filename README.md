@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.24.1 — 2026-11-24
+
+- Print Orders can optionally group the merged packet by workcenter/team. Each section starts with a visual summary, technician/start-stop writing space and four blank boxes for later work, followed by that team's tagged orders. Team colors can be customized per PC, and blank pages keep every team and order aligned for double-sided printing.
+
 ## 2026.11.23.16 — 2026-11-24
 
 - Restored the previous docked-toolbar behaviour and removed the temporary Dock Diagnostic and DPI Mode Test windows. The occasional size change on a mixed-DPI monitor when a helper crosses screens is accepted for now.

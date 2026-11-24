@@ -35,6 +35,8 @@ DEFAULTS: dict[str, object] = {
     "po_stop_on_error": False,
     "po_max_attachments": "4",
     "po_pdf_layout": "auto",
+    "po_group_by_workcenter": False,
+    "po_team_colors": {},
 }
 
 
@@ -65,6 +67,8 @@ def load_user_settings(path: Path | None = None) -> dict:
         value = data.get(key, default)
         if isinstance(default, bool):
             merged[key] = bool(value)
+        elif isinstance(default, dict):
+            merged[key] = dict(value) if isinstance(value, dict) else dict(default)
         else:
             merged[key] = str(value) if value is not None else default
     for key, value in data.items():
