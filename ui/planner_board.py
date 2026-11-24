@@ -15,17 +15,16 @@ from collections.abc import Callable, Iterable
 
 import customtkinter as ctk
 
+from tools.planner_data import PLANNER_TEAMS, PLANNER_USTATUS
+
 # Keep CustomTkinter from switching the process to per-monitor DPI awareness
 # when it creates a popup: Tk 8.6 cannot rescale on DPI changes, so that would
 # resize every window (the docked toolbar included) on a monitor move.
 ctk.deactivate_automatic_dpi_awareness()
 
 PRIORITY_BY_CODE = {"1": "#ff6b7a", "2": "#f4b860", "3": "#8ab4f8", "4": "#54c6a3"}
-PLANNER_TEAMS = ["WP-M-E", "WP-M-J", "WP-M-N", "WP-S", "WP-E-J",
-                 "EX-BELT", "EX-BELTZ", "EX-KV", "EX-VERM", "WP-G"]
 PLANNER_DAY_LABELS = [("Mon", "10"), ("Tue", "11"), ("Wed", "12"),
                       ("Thu", "13"), ("Fri", "14")]
-PLANNER_USTATUS = ["10CR", "20WA", "30PR", "40WM", "50RS", "60RE", "70IE", "80EV"]
 
 LIGHT_BG = "#f2f4f8"
 LIGHT_PANEL = "#ffffff"

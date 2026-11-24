@@ -1,0 +1,16 @@
+# Managed runtime dependencies for portable CPython 3.11 / Windows AMD64.
+# Installed offline by the internal updater. Keep older wheels for revert.
+customtkinter==6.0.0 \
+    --hash=sha256:704fcbf1d2fca06bd7881b0afacfae72aed9864c9b6de2870e632e55eb3a0456
+darkdetect==0.8.0 \
+    --hash=sha256:a7509ccf517eaad92b31c214f593dbcf138ea8a43b2935406bbd565e15527a85
+packaging==26.4 \
+    --hash=sha256:81383611a09c1bc0b08b76e0fd5829d7c6824c65b27a6aee339da133f4233ea2
+pypdf==6.14.2 \
+    --hash=sha256:3f07891af76dc002657e04993ab9b4de81de29f9013b9761d0b7968bff12e946
+reportlab==5.1.1 \
+    --hash=sha256:43af899b836179032807f68aa83b410182e8e6b1221e4339560c5ec44da843ab
+pillow==13.0.0 \
+    --hash=sha256:d7710eb676e9bb68965cb045be0d333b4c0d7f9dfbaa7fbf121385b1588683d3
+charset-normalizer==3.5.3 \
+    --hash=sha256:cd5422fd4f8a7859846c9289e310dd95c0d1890c31819667942753e510f88f69

@@ -3,7 +3,8 @@
 An install is a Git clone, so the update source is the clone's own upstream
 (``origin``): a development clone pulls development commits, an installed clone
 pulls whatever it was cloned from. This module only asks Git what is new and
-resets the working tree to it -- nothing is downloaded or unpacked here.
+resets the working tree to it, then installs missing managed packages from the
+tracked wheel set before relaunch.
 
 Per-machine state lives in ignored files (``data/``, ``private/``), so a reset
 never touches it.
@@ -20,6 +21,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from core import dependencies
+
 APP_ROOT = Path(__file__).resolve().parent.parent
 VERSION_FILE = "VERSION"
 DEFAULT_UPSTREAM = "origin/master"
@@ -31,10 +34,15 @@ _RELEASE_HEADING = re.compile(
 )
 
 GitRunner = Callable[[Path, list[str]], str]
+DependencyInstaller = Callable[[Path], tuple[str, ...]]
 
 
 class UpdateError(Exception):
     """A failed check or update."""
+
+
+class DependencyUpdateError(UpdateError):
+    """The Git update succeeded but managed dependencies did not."""
 
 
 @dataclass(frozen=True)
@@ -214,7 +222,12 @@ def _parse_log(output: str) -> list[CommitInfo]:
     return commits
 
 
-def apply_update(root: Path | str = APP_ROOT, git: GitRunner = run_git) -> str:
+def apply_update(
+    root: Path | str = APP_ROOT,
+    git: GitRunner = run_git,
+    deps_fn: DependencyInstaller = dependencies.ensure_dependencies,
+    on_dependencies: Callable[[], None] | None = None,
+) -> str:
     """Fetch and hard-reset the tracked files to the upstream tip.
 
     Records the commit and version that were installed before the reset, so
@@ -238,13 +251,29 @@ def apply_update(root: Path | str = APP_ROOT, git: GitRunner = run_git) -> str:
         previous_version = ""
     git(root, ["reset", "--hard", upstream])
     version = read_version(root)
+    state = {
+        "from_sha": previous_sha,
+        "from_version": previous_version,
+        "to_version": version,
+        "applied_at": datetime.now().isoformat(timespec="seconds"),
+        "deps_lock_sha": dependencies.lock_hash(root),
+        "dependencies": [],
+    }
     if previous_sha:
-        _write_state(root, {
-            "from_sha": previous_sha,
-            "from_version": previous_version,
-            "to_version": version,
-            "applied_at": datetime.now().isoformat(timespec="seconds"),
-        })
+        _write_state(root, state)
+    if on_dependencies is not None:
+        on_dependencies()
+    try:
+        installed = deps_fn(root)
+    except dependencies.DependencyError as exc:
+        raise DependencyUpdateError(
+            f"Version {version} was installed, but dependencies failed: {exc}. "
+            "Use Retry dependencies."
+        ) from exc
+    state["dependencies"] = list(installed)
+    state["deps_lock_sha"] = dependencies.lock_hash(root)
+    if previous_sha:
+        _write_state(root, state)
     return version
 
 
@@ -261,7 +290,12 @@ def previous_update(root: Path | str = APP_ROOT) -> dict | None:
     return data
 
 
-def revert_update(root: Path | str = APP_ROOT, git: GitRunner = run_git) -> str:
+def revert_update(
+    root: Path | str = APP_ROOT,
+    git: GitRunner = run_git,
+    deps_fn: DependencyInstaller = dependencies.ensure_dependencies,
+    on_dependencies: Callable[[], None] | None = None,
+) -> str:
     """Hard-reset to the version recorded before the last update."""
     root = Path(root)
     state = previous_update(root)
@@ -271,11 +305,31 @@ def revert_update(root: Path | str = APP_ROOT, git: GitRunner = run_git) -> str:
     if not re.fullmatch(r"[0-9a-fA-F]{7,40}", sha):
         raise UpdateError("The recorded previous version is invalid.")
     git(root, ["reset", "--hard", sha])
+    version = read_version(root)
+    if on_dependencies is not None:
+        on_dependencies()
+    try:
+        deps_fn(root)
+    except dependencies.DependencyError as exc:
+        raise DependencyUpdateError(
+            f"Reverted to {version}, but dependencies failed: {exc}. "
+            "Use Retry dependencies."
+        ) from exc
     try:
         _state_path(root).unlink()
     except OSError:
         pass
-    return read_version(root)
+    return version
+
+
+def missing_dependencies(root: Path | str = APP_ROOT) -> tuple[str, ...]:
+    """Managed packages missing or at the wrong version."""
+    return dependencies.missing_dependencies(Path(root))
+
+
+def retry_dependencies(root: Path | str = APP_ROOT) -> tuple[str, ...]:
+    """Retry only the managed dependency installation after an update/revert."""
+    return dependencies.ensure_dependencies(Path(root))
 
 
 def _state_path(root: Path | str) -> Path:

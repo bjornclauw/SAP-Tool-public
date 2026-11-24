@@ -10,6 +10,10 @@
 #   python/python-3.11.8.amd64/python.exe -m pip install customtkinter
 customtkinter>=5.2
 
+# pypdf — Print Orders PDF merge and summary assembly:
+#   python/python-3.11.8.amd64/python.exe -m pip install pypdf
+pypdf>=6.14
+
 # reportlab — Print Orders workcenter summary pages:
 #   python/python-3.11.8.amd64/python.exe -m pip install reportlab
 reportlab>=4.0

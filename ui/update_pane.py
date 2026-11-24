@@ -53,14 +53,18 @@ class UpdatePane(tk.Frame):
         update_fn: Callable[[], str] | None = None,
         previous_fn: Callable[[], dict | None] | None = None,
         revert_fn: Callable[[], str] | None = None,
+        deps_fn: Callable[[], tuple[str, ...]] | None = None,
+        deps_status_fn: Callable[[], tuple[str, ...]] | None = None,
     ):
         super().__init__(master, bg=ui_styles.COLORS["bg"])
         self._is_busy = is_busy
         self._on_exit = on_exit
         self._check_fn = check_fn or (lambda: updater.check_for_update())
-        self._update_fn = update_fn or (lambda: updater.apply_update())
+        self._update_fn = update_fn or self._default_update
         self._previous_fn = previous_fn
-        self._revert_fn = revert_fn or (lambda: updater.revert_update())
+        self._revert_fn = revert_fn or self._default_revert
+        self._deps_fn = deps_fn or updater.retry_dependencies
+        self._deps_status_fn = deps_status_fn or updater.missing_dependencies
         self._check: updater.UpdateCheck | None = None
         self._previous: dict | None = None
         self._working = False
@@ -211,6 +215,11 @@ class UpdatePane(tk.Frame):
         self._revert_button = styled_button(
             actions, text=i18n.t("update.revert", "Revert"),
             command=self._start_revert)
+        self._retry_deps_button = styled_button(
+            actions,
+            text=i18n.t("update.retry_dependencies", "Retry dependencies"),
+            command=self._start_retry_dependencies,
+        )
         self._check_button = styled_button(
             actions, text=i18n.t("update.check_again", "Check again"),
             command=self.start_check)
@@ -241,6 +250,7 @@ class UpdatePane(tk.Frame):
     def start_check(self):
         if self._working or self._checking:
             return
+        self._hide_retry_dependencies()
         self._checking = True
         self._checked = False
         self._set_update_state(False)
@@ -259,10 +269,12 @@ class UpdatePane(tk.Frame):
     def _run_check(self):
         check = self._check_fn()
         previous = self._previous_fn() if self._previous_fn is not None else None
-        self._call(self._apply_check, check, previous)
+        missing = self._deps_status_fn()
+        self._call(self._apply_check, check, previous, missing)
 
     def _apply_check(self, check: updater.UpdateCheck,
-                     previous: dict | None = None):
+                     previous: dict | None = None,
+                     missing_dependencies: tuple[str, ...] = ()):
         self._checking = False
         self._checked = True
         self._check = check
@@ -317,6 +329,8 @@ class UpdatePane(tk.Frame):
                 "update.available_status",
                 "A newer version is ready to install."))
             self._set_update_state(True)
+        elif missing_dependencies:
+            self._show_missing_dependencies(missing_dependencies)
         else:
             self._set_headline(
                 i18n.t("update.up_to_date", "You're up to date"), "success")
@@ -414,9 +428,24 @@ class UpdatePane(tk.Frame):
             "Installing the new version. The app will restart."))
         self._spawn(self._run_update)
 
+    def _default_update(self):
+        return updater.apply_update(
+            on_dependencies=lambda: self._call(self._set_dependency_phase))
+
+    def _set_dependency_phase(self):
+        self._set_headline(
+            i18n.t("update.installing_dependencies_headline",
+                   "Installing dependencies…"), "warning")
+        self._set_status(i18n.t(
+            "update.installing_dependencies_status",
+            "Checking and installing required packages from the bundled wheels."))
+
     def _run_update(self):
         try:
             version = self._update_fn()
+        except updater.DependencyUpdateError as exc:
+            self._call(self._dependency_failed, str(exc))
+            return
         except Exception as exc:
             self._call(self._fail, str(exc))
             return
@@ -444,14 +473,83 @@ class UpdatePane(tk.Frame):
             "Restoring {version}. The app will restart.", version=version))
         self._spawn(self._run_revert)
 
+    def _default_revert(self):
+        return updater.revert_update(
+            on_dependencies=lambda: self._call(self._set_dependency_phase))
+
     def _run_revert(self):
         try:
             version = self._revert_fn()
+        except updater.DependencyUpdateError as exc:
+            self._call(self._dependency_failed, str(exc))
+            return
         except Exception as exc:
             self._call(self._fail, str(exc))
             return
         self._call(self._restart, version,
                    i18n.t("update.reverted", "Reverted"))
+
+    def _show_missing_dependencies(self, missing: tuple[str, ...]):
+        self._set_headline(
+            i18n.t("update.missing_dependencies_headline",
+                   "Dependencies need attention"), "warning")
+        self._set_status(i18n.t(
+            "update.missing_dependencies_status",
+            "Missing or outdated: {packages}. Install them from the bundled wheels.",
+            packages=", ".join(missing)), "warning")
+        self._retry_deps_button.config(
+            text=i18n.t("update.install_dependencies", "Install dependencies"))
+        if not self._retry_deps_button.winfo_manager():
+            self._retry_deps_button.pack(fill="x", pady=(6, 0),
+                                         before=self._check_button)
+
+    def _start_retry_dependencies(self):
+        if self._working:
+            return
+        self._working = True
+        self._hide_retry_dependencies()
+        self._check_button.config(state="disabled")
+        self._revert_button.config(state="disabled")
+        self._set_dependency_phase()
+        self._spawn(self._run_retry_dependencies)
+
+    def _run_retry_dependencies(self):
+        try:
+            self._deps_fn()
+        except Exception as exc:
+            self._call(self._dependency_failed, str(exc))
+            return
+        version = (
+            ((self._check.remote if self._check.newer else self._check.local)
+             if self._check is not None else "")
+            or (self._previous or {}).get("to_version", "")
+            or i18n.t("update.current_version", "the current version")
+        )
+        self._call(self._restart, version)
+
+    def _dependency_failed(self, message: str):
+        self._working = False
+        self._set_headline(
+            i18n.t("update.dependencies_failed_headline",
+                   "Dependencies need attention"), "error")
+        self._set_status(i18n.t(
+            "update.dependencies_failed_status",
+            "The version changed, but required packages could not be installed: "
+            "{message}", message=message), "error")
+        self._check_button.config(state="normal")
+        self._retry_deps_button.config(
+            text=i18n.t("update.retry_dependencies", "Retry dependencies"))
+        if not self._retry_deps_button.winfo_manager():
+            self._retry_deps_button.pack(fill="x", pady=(6, 0),
+                                         before=self._check_button)
+        if self._previous and self._previous.get("from_version"):
+            self._revert_button.config(state="normal")
+
+    def _hide_retry_dependencies(self):
+        if self._retry_deps_button.winfo_manager():
+            self._retry_deps_button.pack_forget()
+        self._retry_deps_button.config(
+            text=i18n.t("update.retry_dependencies", "Retry dependencies"))
 
     def _restart(self, version: str, verb: str = ""):
         verb = verb or i18n.t("update.updated", "Updated")
@@ -470,6 +568,7 @@ class UpdatePane(tk.Frame):
 
     def _fail(self, message: str):
         self._working = False
+        self._hide_retry_dependencies()
         self._set_headline(
             i18n.t("update.failed", "Update failed"), "error")
         self._set_status(i18n.t(

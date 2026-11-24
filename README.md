@@ -1,5 +1,10 @@
 # SAP Work Order Tool
 
+## 2026.11.24.2 — 2026-11-24
+
+- Print Orders still opens and normal merging still works when the optional team-summary packages are missing; enabling team summaries now explains exactly which packages to install.
+- Required Planner and Print Orders packages are now bundled as verified wheels and installed by the internal updater, including during revert. Settings → Update can install or retry dependencies without another download, and Planner explains missing CustomTkinter instead of opening blank.
+
 ## 2026.11.24.1 — 2026-11-24
 
 - Print Orders can optionally group the merged packet by workcenter/team. Each section starts with a visual summary, technician/start-stop writing space and four blank boxes for later work, followed by that team's tagged orders. Team colors can be customized per PC, and blank pages keep every team and order aligned for double-sided printing.

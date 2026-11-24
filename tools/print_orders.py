@@ -2042,7 +2042,14 @@ class PrintOrdersWindow(BaseToolWindow):
                     os.remove(temp_file)
                 except OSError:
                     pass
-            self.report_status(f"Could not build merged PDF: {error}", "error")
+            message = str(error)
+            if "ReportLab and Pillow" in message:
+                message = i18n.t(
+                    "print_orders.summary_dependencies_missing",
+                    "Team summaries need ReportLab and Pillow. "
+                    "Open Settings → Update to install them.",
+                )
+            self.report_status(f"Could not build merged PDF: {message}", "error")
             self._refresh_action_state()
             return
         try:

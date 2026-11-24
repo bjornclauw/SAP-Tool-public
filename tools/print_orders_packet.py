@@ -7,12 +7,10 @@ from io import BytesIO
 from pathlib import Path
 
 from pypdf import PdfReader, PdfWriter
-from reportlab.lib.colors import HexColor, white
-from reportlab.pdfbase.pdfmetrics import stringWidth
-from reportlab.pdfgen import canvas
 
-from tools.print_summary import MM, render_summary
 from tools.print_team_colors import team_color
+
+MM = 72 / 25.4
 
 
 def _group_orders(orders: list[dict]) -> list[tuple[str, list[dict]]]:
@@ -26,6 +24,10 @@ def _group_orders(orders: list[dict]) -> list[tuple[str, list[dict]]]:
 
 
 def _tag_page(page, team: str, revision: str, color: str) -> None:
+    from reportlab.lib.colors import HexColor, white
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    from reportlab.pdfgen import canvas
+
     width = float(page.mediabox.width)
     height = float(page.mediabox.height)
     margin = 4 * MM
@@ -66,6 +68,16 @@ def build_packet(
     team_order: list[str] = []
 
     if grouped:
+        try:
+            __import__("reportlab")
+            __import__("PIL")
+        except ImportError as exc:
+            raise RuntimeError(
+                "Team summaries require ReportLab and Pillow. "
+                "Install them with: python -m pip install -r requirements.txt"
+            ) from exc
+        from tools.print_summary import render_summary
+
         with tempfile.TemporaryDirectory() as tmp:
             for team_index, (team, team_orders) in enumerate(_group_orders(orders)):
                 team_order.append(team)

@@ -10,13 +10,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from core import i18n
+from tools.planner_data import PLANNER_TEAMS, PLANNER_USTATUS
 from ui import ui_styles
 from ui.custom_widgets import BaseToolWindow
-from ui.planner_board import (
-    PLANNER_TEAMS,
-    PLANNER_USTATUS,
-    PlannerBoard,
-)
 
 PREVIEW_TECHS = {
     "WP-M-E": ["Jeffrey", "Dan", "Sofie", "Wim"],
@@ -98,6 +95,19 @@ class PlannerWindow(BaseToolWindow):
         self.title("Planner")
         self.geometry("1500x860")
         self.minsize(1180, 720)
+        self._dependency_error = False
+
+        try:
+            from ui.planner_board import PlannerBoard
+        except ModuleNotFoundError as exc:
+            if (exc.name or "").split(".")[0] not in {
+                "customtkinter", "darkdetect", "packaging",
+            }:
+                raise
+            self._dependency_error = True
+            self._build_missing_dependency()
+            self._show()
+            return
 
         if tasks is None:
             tasks, general_workplaces = _load_local_fixture()
@@ -114,6 +124,36 @@ class PlannerWindow(BaseToolWindow):
         )
         status_bar.pack_configure(side="bottom")
         self._show()
+
+    def _build_missing_dependency(self):
+        outer = ui_styles.styled_frame(self)
+        outer.pack(fill="both", expand=True, padx=ui_styles.SPACING["loose"],
+                   pady=ui_styles.SPACING["loose"])
+        message = ui_styles.styled_label(
+            outer,
+            i18n.t(
+                "planner.missing_dependency",
+                "Planner needs CustomTkinter and its bundled dependencies. "
+                "Open Settings → Update to install them.",
+            ),
+            font=ui_styles.FONTS["header"],
+            justify="left", wraplength=620,
+        )
+        message.pack(anchor="w", pady=ui_styles.SPACING["comfortable"])
+        ui_styles.styled_button(
+            outer,
+            i18n.t("planner.open_update", "Open Settings → Update"),
+            command=self._open_update_settings,
+        ).pack(anchor="w")
+
+    def _open_update_settings(self):
+        toolbar = self._toolbar
+        if toolbar is None:
+            return
+        toolbar._open_dock_settings()
+        window = getattr(toolbar, "_dock_settings_win", None)
+        if window is not None:
+            window.open_update_tab(force_check=False)
 
     def _send_changes(self):
         dirty = self.board.dirty_tasks()
