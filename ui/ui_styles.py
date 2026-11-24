@@ -93,8 +93,6 @@ TOOL_COLORS: dict[str, str] = {
     "order_searcher": "#2e7d32",  # green
     "vendor_manager": "#795548",  # brown
     "planner": "#6d65e8",  # violet
-    "dock_diag": "#c62828",  # red: temporary diagnostic
-    "dpi_test": "#8e24aa",  # purple: temporary DPI mode test
 }
 SUPPORT_COLOR = "#546e7a"  # blue-grey: every helper modal
 

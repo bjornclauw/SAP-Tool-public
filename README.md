@@ -1,52 +1,8 @@
 # SAP Work Order Tool
 
-## 2026.11.23.15 — 2026-11-23
+## 2026.11.23.16 — 2026-11-24
 
-- The docked toolbar keeps its size when it is reopened while a helper is on another monitor with different display scaling. Hiding now parks the window just above the screen edge instead of withdrawing it, so Windows no longer re-scales it when it comes back.
-
-## 2026.11.23.14 — 2026-11-23
-
-- The docked toolbar no longer changes size or shifts when a helper is dragged between monitors with different display scaling. It is raised when shown instead of being kept in the Windows topmost band, which Windows rescaled during the drag.
-
-## 2026.11.23.13 — 2026-11-23
-
-- Fixed the remaining case where the docked toolbar could still resize after a helper was dragged between monitors with different display scaling.
-
-## 2026.11.23.12 — 2026-11-23
-
-- The docked toolbar keeps its size and position when a helper is dragged between monitors with different display scaling; the periodic topmost re-assert no longer resets its scale.
-
-## 2026.11.23.11 — 2026-11-23
-
-- The temporary Dock Diagnostic now records the real physical window size and monitor DPI, and can switch the topmost watch off to isolate a repaint problem.
-
-## 2026.11.23.10 — 2026-11-23
-
-- A temporary **DPI Mode Test** tool window restarts the app in either DPI mode, so the docked toolbar can be compared while a helper moves between monitors.
-
-## 2026.11.23.9 — 2026-11-23
-
-- The docked bar animates to its packed size after a helper moves or the tray changes, instead of briefly using an old size.
-
-## 2026.11.23.8 — 2026-11-23
-
-- The docked toolbar also re-centres itself if it drifts off its monitor's centre.
-
-## 2026.11.23.7 — 2026-11-23
-
-- The docked toolbar re-fits itself when the open-helper tray changes, instead of keeping an old size until it is hidden and shown again.
-
-## 2026.11.23.6 — 2026-11-23
-
-- Fixed the temporary Dock Diagnostic changing the monitor the toolbar docks on; monitor lookups now use one shared, 64-bit-safe API path.
-
-## 2026.11.23.5 — 2026-11-23
-
-- Added a temporary Dock Diagnostic tool (Settings → Tool windows) to record monitor, DPI and dock geometry while reporting a multi-monitor docking issue.
-
-## 2026.11.23.4 — 2026-11-23
-
-- Docking no longer keeps a stale window size or offset after a helper was open; the bar returns at its packed size, centred on its own monitor.
+- Restored the previous docked-toolbar behaviour and removed the temporary Dock Diagnostic and DPI Mode Test windows. The occasional size change on a mixed-DPI monitor when a helper crosses screens is accepted for now.
 
 ## 2026.11.23.3 — 2026-11-23
 

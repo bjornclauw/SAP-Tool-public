@@ -2,11 +2,7 @@
 
 Full package without a system-tray icon (per request):
 
-- "Dock top": snaps the toolbar to the top edge, centered, raised when shown.
-  It deliberately stays OUT of the Windows topmost band: Windows rescales a
-  topmost DPI-unaware window when the foreground window crosses monitors,
-  which made the bar shrink and shift on a mixed-DPI desk. The peek pill
-  stays topmost so it remains reachable.
+- "Dock top": snaps the toolbar to the top edge, centered, kept topmost.
 - "Auto-hide" (needs dock): after the mouse leaves the window for a short
   dwell, the toolbar withdraws and a slim always-visible **peek strip**
   (primary-blue, full width, 14px, "SAP Toolbar -- hover or Ctrl+Alt+S")
@@ -30,10 +26,9 @@ from __future__ import annotations
 import queue
 import threading
 import tkinter as tk
-from functools import wraps
 from pathlib import Path
 
-from .monitor import is_topmost, unaware_thread, work_area_of
+from .monitor import work_area_of
 
 HOTKEY_ID = 0x5A17
 HOTKEY_MOD = 0x0001 | 0x0002  # MOD_ALT | MOD_CONTROL
@@ -51,28 +46,13 @@ PEEK_FADE_STEPS = 7
 # Hover dwell on the collapsed pill before the bar restores: a quick pass
 # across the top edge must not pop the toolbar open.
 PEEK_SHOW_DELAY_MS = 200
-# The peek pill can lose -topmost across withdraw/deiconify or a chrome
-# toggle. Check slowly, but re-apply only when it is actually gone.
+# Windows drops -topmost across withdraw/deiconify and when a helper takes
+# focus; re-assert it periodically while docked.
 TOPMOST_WATCH_MS = 2000
 # A modal grab routes pointer events away from the pill, so poll the pointer
 # while the pill is visible instead of relying on its <Enter> binding.
 PEEK_HOVER_MS = 120
 LOGO_PATH = Path(__file__).parent.parent / "assets" / "logo.png"
-
-
-def _unaware_context(fn):
-    """Run a window-API method in the process's own DPI context.
-
-    A message dispatched to a window can leave the thread in that window's
-    DPI context; a later SetWindowPos then resets the virtualized scale of
-    the unaware docked bar on a scaled monitor.
-    """
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        with unaware_thread():
-            return fn(*args, **kwargs)
-
-    return wrapper
 
 
 def load_logo_image(size: int, master=None):
@@ -132,7 +112,6 @@ class DockManager:
         self._toast_msg = ""
         self._was_docked = False
         self._saved_geometry: str = ""
-        self._saved_area: tuple[int, int, int, int] | None = None
         # Slide+fade animation state. _anim_id is the pending frame (None
         # when idle); _anim_gen invalidates stale frames so a reversed
         # animation can never fight the one that replaced it.
@@ -151,24 +130,8 @@ class DockManager:
         """(Re)apply dock + autohide state. Call after geometry is known."""
         now_docked = bool(self.dock_enabled.get())
         if now_docked:
-            # Capture the monitor before the borderless toggle: Windows can
-            # move an overrideredirect window, which would make the later
-            # work-area lookup pick the wrong monitor. A hidden root uses the
-            # area stored when it withdrew; a visible one is still trustworthy.
-            area = self._saved_area if self._is_hidden() else None
-            area = area or work_area_of(self.root)
             self._set_chrome(True)
-            # Keep the docked bar out of the topmost band even when the user
-            # had "always on top" enabled while undocked.
-            try:
-                self.root.attributes("-topmost", False)
-            except Exception:
-                pass
-            # Drop any WxH left by an interrupted show animation. Without
-            # this, docking keeps the stale size and _snap_top centres the
-            # bar from that wrong width.
-            self._release_size()
-            self._snap_top(area)
+            self._snap_top()
             self._ensure_hotkey()  # hotkey works whenever docked
             self._start_topmost_watch()
             if not self.autohide.get():
@@ -222,11 +185,9 @@ class DockManager:
         was_hidden = self._is_hidden()
         try:
             self._destroy_peek()
-            # Toggle the style in place. A withdraw/deiconify re-maps the
-            # native window, and Windows re-evaluates a DPI-unaware popup's
-            # scale at map time -- on a mixed-DPI desk it then takes the
-            # foreground window's monitor scale.
+            self.root.withdraw()
             self.root.overrideredirect(borderless)
+            self.root.deiconify()
             self.root.update_idletasks()
             self._assert_topmost()
             if was_hidden:
@@ -281,40 +242,40 @@ class DockManager:
         self._peek_logo_img = None
 
     # ---- dock --------------------------------------------------------
-    @_unaware_context
     def _assert_topmost(self):
-        """Keep only the peek pill in the topmost band.
+        """Re-apply topmost to the docked bar and the pill.
 
-        The docked bar itself is deliberately not topmost: Windows rescales a
-        topmost DPI-unaware window when the foreground window crosses
-        monitors, which shrank the bar and shifted it left on a mixed-DPI
-        desk. It is raised with lift()/focus_force() when shown instead. The
-        pill must stay topmost so it is reachable above SAP.
-
-        Re-apply only when Windows actually lost the style; reading the native
-        ex-style keeps the watch a no-op while it is intact. An open combobox
-        popdown is left alone: changing z-order under it can close the
-        dropdown while the user is choosing.
+        Windows drops the attribute across withdraw/deiconify cycles and when
+        another window focuses, so every transition (and a slow watch) calls
+        this instead of relying on the one-off set at creation. An open
+        combobox popdown is left alone: changing z-order under it can close
+        the dropdown while the user is choosing.
         """
         if not self.dock_enabled.get() or self._popup_grab_active():
             return
         peek = self._peek
-        if peek is None:
-            return
+        # Windows can snap an overrideredirect Toplevel back to +0+0 when
+        # -topmost is re-applied while the docked root is withdrawn; remember
+        # the pill's geometry and put it back.
+        geometry = None
+        if peek is not None:
+            try:
+                if peek.winfo_exists():
+                    geometry = peek.geometry()
+            except Exception:
+                geometry = None
         try:
-            if not peek.winfo_exists() or is_topmost(peek.winfo_id()):
-                return
-            # Windows can snap an overrideredirect Toplevel back to +0+0 when
-            # -topmost is re-applied; remember its geometry and put it back.
-            geometry = peek.geometry()
-        except Exception:
-            return
-        try:
-            peek.attributes("-topmost", True)
-            if geometry:
-                peek.geometry(geometry)
+            self.root.attributes("-topmost", True)
         except Exception:
             pass
+        if peek is not None:
+            try:
+                if peek.winfo_exists():
+                    peek.attributes("-topmost", True)
+                    if geometry:
+                        peek.geometry(geometry)
+            except Exception:
+                pass
 
     def _start_topmost_watch(self):
         if self._topmost_id is None:
@@ -324,31 +285,11 @@ class DockManager:
             except Exception:
                 self._topmost_id = None
 
-    @_unaware_context
     def _topmost_tick(self):
         self._topmost_id = None
         if self._destroyed or not self.dock_enabled.get():
             return
         self._assert_topmost()
-        # Packed content can change after a helper opens, closes or updates
-        # (the OPEN tray). If the bar kept an explicit size from an earlier
-        # show, snap it back to the packed size instead of staying squeezed.
-        if not self._is_hidden():
-            try:
-                w = self.root.winfo_width()
-                h = self.root.winfo_height()
-                rw = self.root.winfo_reqwidth()
-                rh = self.root.winfo_reqheight()
-                stale_size = abs(w - rw) > 1 or abs(h - rh) > 1
-                mx, my, mw, _mh = work_area_of(self.root)
-                expected_x = mx + max(0, (mw - w) // 2)
-                off_center = (
-                    abs(self.root.winfo_rootx() - expected_x) > 1
-                    or abs(self.root.winfo_rooty() - my) > 1)
-                if stale_size or off_center:
-                    self.refit()
-            except Exception:
-                pass
         # A helper that closed may have skipped the last hide; re-arm it so
         # the bar returns to its normal auto-hide behaviour.
         if (self.autohide.get() and not self._is_hidden()
@@ -368,35 +309,20 @@ class DockManager:
             self._topmost_id = None
         self._stop_grab_watch()
 
-    def refit(self):
-        """Drop a stale explicit size and re-centre after packed content
-        changed (the open-helper tray growing/shrinking, a helper update)."""
-        if not self.dock_enabled.get():
-            return
-        try:
-            self.root.update_idletasks()
-            if self._is_hidden():
-                return
-            self._release_size()
-            self._snap_top(work_area_of(self.root))
-        except Exception:
-            pass
-
-    def _snap_top(self, area: tuple[int, int, int, int] | None = None):
+    def _snap_top(self):
         """Center on the top edge OF THE TOOLBAR'S OWN MONITOR (not the
         primary -- winfo_screenwidth lies on multi-monitor setups).
         Position-only: the bar keeps whatever size pack computes, so a
         tray unfolding later can grow it downward instead of squeezing
-        its content to unmapped. Callers pass ``area`` when the window may
-        have moved during a chrome toggle."""
+        its content to unmapped."""
         try:
             self.root.update_idletasks()
             w = self.root.winfo_width() or self.root.winfo_reqwidth() or 800
-            mx, my, mw, _mh = area if area is not None else work_area_of(self.root)
+            mx, my, mw, _mh = work_area_of(self.root)
             x = mx + max(0, (mw - w) // 2)
             self.root.geometry(f"+{x}+{my}")
             self.root.update_idletasks()  # let the WM commit before we read back
-            self._assert_topmost()
+            self.root.attributes("-topmost", True)
         except Exception:
             pass
 
@@ -531,8 +457,7 @@ class DockManager:
         if not animate:
             try:
                 self._saved_geometry = self.root.geometry()
-                self._saved_area = work_area_of(self.root)
-                self._park_offscreen()
+                self.root.withdraw()
             except Exception:
                 return
             self._show_peek(animate=False)
@@ -546,11 +471,9 @@ class DockManager:
             if w <= 1 or h <= 1:
                 raise ValueError("no geometry yet")
             self._saved_geometry = self.root.geometry()
-            self._saved_area = work_area_of(self.root)
         except Exception:
             try:
                 self._saved_geometry = self.root.geometry()
-                self._saved_area = work_area_of(self.root)
                 self.root.withdraw()
             except Exception:
                 return
@@ -578,7 +501,8 @@ class DockManager:
                     self._anim_id = None
                 return
             try:
-                self._park_offscreen()
+                self.root.withdraw()
+                self.root.attributes("-alpha", 1.0)
             except Exception:
                 pass
             self._show_peek()
@@ -587,26 +511,6 @@ class DockManager:
             self._anim_id = self.root.after(delay, lambda: frame(1))
         except Exception:
             self._anim_id = None
-
-    def _park_offscreen(self):
-        """Keep the bar mapped just above the top edge while hidden.
-
-        Withdraw/deiconify re-maps the native window, and Windows re-evaluates
-        the DPI scale of a DPI-unaware popup at map time: on a mixed-DPI desk
-        the bar came back at the foreground window's monitor scale. A mapped,
-        off-screen window keeps the scale it already had.
-        """
-        try:
-            self.root.update_idletasks()
-            w = self.root.winfo_width() or self.root.winfo_reqwidth() or 800
-            h = self.root.winfo_height() or self.root.winfo_reqheight() or 200
-            x = self.root.winfo_rootx()
-            self.root.geometry(f"{w}x{h}+{x}+{-h - 10}")
-            self.root.attributes("-alpha", 1.0)
-            # A parked window must not keep keyboard focus.
-            self.root.attributes("-disabled", True)
-        except Exception:
-            pass
 
     def _prepare_show(self):
         """Let the owner sync packed content before the show measures it.
@@ -632,12 +536,6 @@ class DockManager:
         self._prepare_show()
         self._cancel_peek_show()
         self._cancel_anim()
-        was_hidden = self._is_hidden()
-        if was_hidden:
-            try:
-                self.root.attributes("-disabled", False)
-            except Exception:
-                pass
         self._destroy_peek()
         if not animate:
             try:
@@ -661,12 +559,17 @@ class DockManager:
         target = self._parse_geometry(self._saved_geometry or "")
         try:
             self.root.update_idletasks()
-            # Always animate to the packed size. While hidden the old width
-            # can be stale; while visible a helper/tray update can have left
-            # an explicit size behind. Either way the requested size is the
-            # only correct target, and the final _release_size keeps it.
-            w = self.root.winfo_reqwidth() or 800
-            h = self.root.winfo_reqheight() or 200
+            # While hidden, winfo_height still reports the height the bar had
+            # when it withdrew. The packed layout may be shorter now (the OPEN
+            # tray collapsed), so measure the requested size instead.
+            if self.root.winfo_ismapped():
+                w = self.root.winfo_width()
+                h = self.root.winfo_height()
+            else:
+                w = self.root.winfo_reqwidth()
+                h = self.root.winfo_reqheight()
+            w = w or self.root.winfo_reqwidth() or 800
+            h = h or self.root.winfo_reqheight() or 200
             mx, my, mw, _mh = work_area_of(self.root)
         except Exception:
             w, h, mx, my, mw = 800, 200, 0, 0, 1920
@@ -691,12 +594,6 @@ class DockManager:
                 except Exception:
                     sa = 1.0
                 sa = min(1.0, max(0.0, sa))
-                if was_hidden:
-                    # Parked off-screen: take the packed size now (the old
-                    # height may be stale), then fade in while sliding down.
-                    sa = 0.0
-                    self.root.geometry(f"{w}x{h}+{sx}+{sy}")
-                    self.root.attributes("-alpha", 0.0)
             else:
                 sx, sy, sa = x, my - h, 0.0
                 self.root.geometry(f"{w}x{h}+{sx}+{sy}")
@@ -945,7 +842,7 @@ class DockManager:
             return
         try:
             self._peek.update_idletasks()
-            mx, my, mw, _mh = self._saved_area or work_area_of(self.root)
+            mx, my, mw, _mh = work_area_of(self.root)
             w = self._peek_inner.winfo_reqwidth() + 20
             h = max(self._peek_inner.winfo_reqheight() + 4, PEEK_HEIGHT)
             self._peek.geometry(f"{w}x{h}+{mx + max(0, (mw - w) // 2)}+{my}")
@@ -962,7 +859,7 @@ class DockManager:
 
         self._destroy_peek()
         try:
-            mx, my, mw, _mh = self._saved_area or work_area_of(self.root)
+            mx, my, mw, _mh = work_area_of(self.root)
             peek = tk.Toplevel(self.root)
             peek.overrideredirect(True)
             peek.attributes("-topmost", True)
