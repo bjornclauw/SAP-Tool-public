@@ -1625,6 +1625,7 @@ class PrintOrdersWindow(BaseToolWindow):
         status = self.engine.get_variable("po_print_status", "")
         ok = status == "printed"
         result = {
+            **dict(self._order_results.get(order, {})),
             "order": order,
             "short_text": self._active_text,
             "status": self.STATUS_DONE if ok else self.STATUS_FAILED,

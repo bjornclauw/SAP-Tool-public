@@ -1,5 +1,9 @@
 # SAP Work Order Tool
 
+## 2026.11.24.6 — 2026-11-24
+
+- Print Orders team summaries now keep the first order image instead of replacing it with the no-image placeholder.
+
 ## 2026.11.24.5 — 2026-11-24
 
 - If Windows locks a package file during Update, the app now remembers the pending installation and finishes it after a restart, before opening the tool windows.
