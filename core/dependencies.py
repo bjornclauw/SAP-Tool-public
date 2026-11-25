@@ -69,11 +69,21 @@ def lock_hash(root: Path | str) -> str:
 
 def _installed_versions(target_dir: Path | None) -> dict[str, str]:
     versions: dict[str, str] = {}
-    distributions = (
-        importlib.metadata.distributions()
-        if target_dir is None
-        else importlib.metadata.distributions(path=[str(target_dir)])
-    )
+    if target_dir is None:
+        distributions = importlib.metadata.distributions()
+    else:
+        try:
+            entries = list(target_dir.iterdir())
+        except OSError:
+            return versions
+        distributions = []
+        for entry in entries:
+            if not entry.name.endswith((".dist-info", ".egg-info")):
+                continue
+            try:
+                distributions.append(importlib.metadata.Distribution.at(entry))
+            except (OSError, ValueError):
+                continue
     for distribution in distributions:
         name = distribution.metadata.get("Name")
         if name:
@@ -81,17 +91,23 @@ def _installed_versions(target_dir: Path | None) -> dict[str, str]:
     return versions
 
 
+def _missing_packages(
+    root: Path | str, target_dir: Path | None,
+) -> tuple[tuple[str, str], ...]:
+    installed = _installed_versions(target_dir)
+    return tuple(
+        key for key in locked_dependencies(root).items()
+        if installed.get(key[0]) != key[1]
+    )
+
+
 def missing_dependencies(
     root: Path | str, target_dir: Path | str | None = None,
 ) -> tuple[str, ...]:
     """Pinned packages missing or installed at the wrong version."""
     target = Path(target_dir) if target_dir is not None else None
-    installed = _installed_versions(target)
-    missing = []
-    for name, version in locked_dependencies(root).items():
-        if installed.get(name) != version:
-            missing.append(f"{name}=={version}")
-    return tuple(missing)
+    return tuple(f"{name}=={version}"
+                 for name, version in _missing_packages(root, target))
 
 
 def site_packages_dir() -> Path:
@@ -125,19 +141,106 @@ def _safe_wheel_path(info: zipfile.ZipInfo) -> PurePosixPath | None:
     return relative if relative.parts else None
 
 
+def _metadata_project(name: str) -> str | None:
+    """The normalised project name of a ``.dist-info``/``.egg-info`` entry."""
+    for suffix in (".dist-info", ".egg-info"):
+        if name.endswith(suffix):
+            return _normalise(name[:-len(suffix)].split("-", 1)[0])
+    return None
+
+
+def _clear_stale_staging(target_dir: Path) -> None:
+    """Remove staging folders left behind when locked files could not be deleted."""
+    for entry in target_dir.parent.glob(".wheel-*"):
+        if entry.is_dir():
+            shutil.rmtree(entry, ignore_errors=True)
+
+
+def _rollback_install(
+    target_dir: Path,
+    moved_in: list[str],
+    moved_out: dict[str, Path],
+) -> None:
+    """Best-effort restore after a failed swap."""
+    for name in moved_in:
+        path = target_dir / name
+        try:
+            if path.is_dir() and not path.is_symlink():
+                shutil.rmtree(path, ignore_errors=True)
+            elif path.exists() or path.is_symlink():
+                path.unlink()
+        except OSError:
+            pass
+    for name, backup in moved_out.items():
+        destination = target_dir / name
+        if destination.exists() or destination.is_symlink():
+            continue
+        try:
+            shutil.move(str(backup), str(destination))
+        except OSError:
+            pass
+
+
+def _install_wheel(
+    wheel: Path,
+    key: tuple[str, str],
+    target_dir: Path,
+    staging_root: Path,
+) -> None:
+    """Replace one installed project with a verified wheel, keeping a rollback copy."""
+    staging = staging_root / "new"
+    backup_dir = staging_root / "old"
+    staging.mkdir()
+    backup_dir.mkdir()
+    roots: set[str] = set()
+    with zipfile.ZipFile(wheel) as archive:
+        for info in archive.infolist():
+            relative = _safe_wheel_path(info)
+            if relative is None:
+                continue
+            roots.add(relative.parts[0])
+            destination = staging.joinpath(*relative.parts)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            with archive.open(info) as source, open(destination, "wb") as output:
+                shutil.copyfileobj(source, output)
+
+    project = key[0]
+    replace = set(roots)
+    replace.update(
+        entry.name for entry in target_dir.iterdir()
+        if _metadata_project(entry.name) == project
+    )
+
+    moved_out: dict[str, Path] = {}
+    moved_in: list[str] = []
+    try:
+        for name in sorted(replace):
+            existing = target_dir / name
+            if not (existing.exists() or existing.is_symlink()):
+                continue
+            shutil.move(str(existing), str(backup_dir / name))
+            moved_out[name] = backup_dir / name
+        for child in staging.iterdir():
+            shutil.move(str(child), str(target_dir / child.name))
+            moved_in.append(child.name)
+    except OSError as exc:
+        _rollback_install(target_dir, moved_in, moved_out)
+        raise DependencyError(f"Could not install {wheel.name}: {exc}") from exc
+
+
 def install_wheels(
     root: Path,
     locked: dict[tuple[str, str], str],
     target_dir: Path,
 ) -> None:
-    """Install the locked wheels directly, without invoking pip."""
+    """Install the given locked wheels directly, without invoking pip."""
     available: dict[tuple[str, str], Path] = {}
     for wheel in sorted((root / WHEELS_DIR).glob("*.whl")):
         key = _wheel_key(wheel.name)
         if key:
             available[key] = wheel
 
-    selected: list[tuple[Path, str]] = []
+    selected: list[tuple[Path, tuple[str, str]]] = []
     for key, expected_hash in locked.items():
         wheel = available.get(key)
         if wheel is None:
@@ -146,34 +249,17 @@ def install_wheels(
         digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
         if digest != expected_hash:
             raise DependencyError(f"Wheel hash mismatch: {wheel.name}")
-        selected.append((wheel, expected_hash))
+        selected.append((wheel, key))
 
     target_dir.mkdir(parents=True, exist_ok=True)
-    for wheel, _expected_hash in selected:
+    _clear_stale_staging(target_dir)
+    for wheel, key in selected:
         try:
-            with zipfile.ZipFile(wheel) as archive:
-                with tempfile.TemporaryDirectory(
-                    prefix=".wheel-", dir=target_dir.parent,
-                ) as tmp:
-                    staging = Path(tmp)
-                    roots: set[str] = set()
-                    for info in archive.infolist():
-                        relative = _safe_wheel_path(info)
-                        if relative is None:
-                            continue
-                        roots.add(relative.parts[0])
-                        destination = staging.joinpath(*relative.parts)
-                        destination.parent.mkdir(parents=True, exist_ok=True)
-                        with archive.open(info) as source, open(destination, "wb") as output:
-                            shutil.copyfileobj(source, output)
-                    for root_name in roots:
-                        existing = target_dir / root_name
-                        if existing.is_dir():
-                            shutil.rmtree(existing)
-                        elif existing.exists():
-                            existing.unlink()
-                    for child in staging.iterdir():
-                        shutil.move(str(child), str(target_dir / child.name))
+            with tempfile.TemporaryDirectory(
+                prefix=".wheel-", dir=target_dir.parent,
+                ignore_cleanup_errors=True,
+            ) as tmp:
+                _install_wheel(wheel, key, target_dir, Path(tmp))
         except DependencyError:
             raise
         except (OSError, zipfile.BadZipFile) as exc:
@@ -195,19 +281,21 @@ def ensure_dependencies(
     if not locked:
         return ()
     target = Path(target_dir) if target_dir is not None else site_packages_dir()
-    missing = missing_dependencies(root, target)
+    missing = _missing_packages(root, target)
     if not missing:
         return ()
+    selected = {key: locked[key] for key in missing}
+    display = ", ".join(f"{name}=={version}" for name, version in missing)
     try:
-        installer(root, locked, target)
+        installer(root, selected, target)
     except DependencyError as exc:
         raise DependencyError(
-            f"Could not install required packages ({', '.join(missing)}): {exc}"
+            f"Could not install required packages ({display}): {exc}"
         ) from exc
-    remaining = missing_dependencies(root, target)
+    remaining = _missing_packages(root, target)
     if remaining:
         raise DependencyError(
             "Dependencies are still missing after installation: "
-            + ", ".join(remaining)
+            + ", ".join(f"{name}=={version}" for name, version in remaining)
         )
     return tuple(name for name, _version in locked)

@@ -6,7 +6,7 @@ import tkinter as tk
 from tkinter import colorchooser
 
 from core import i18n
-from tools.print_team_colors import team_color
+from tools.print_team_colors import contrast_text, team_color
 from ui import ui_styles
 from ui.ui_styles import (
     SPACING,
@@ -20,15 +20,6 @@ from ui.window_chrome import show_centered
 
 def _key(value: object) -> str:
     return " ".join(str(value or "").split()).casefold()
-
-
-def _foreground(color: str) -> str:
-    value = color.lstrip("#")
-    channels = [int(value[index:index + 2], 16) / 255 for index in (0, 2, 4)]
-    linear = [channel / 12.92 if channel <= .04045
-              else ((channel + .055) / 1.055) ** 2.4 for channel in channels]
-    luminance = .2126 * linear[0] + .7152 * linear[1] + .0722 * linear[2]
-    return "#1a1a1a" if luminance > .45 else "#ffffff"
 
 
 class TeamColorDialog(tk.Toplevel):
@@ -107,7 +98,7 @@ class TeamColorDialog(tk.Toplevel):
         self.preview.configure(
             text=f"{team}\n{color}",
             bg=color,
-            fg=_foreground(color),
+            fg=contrast_text(color),
         )
 
     def _choose(self):

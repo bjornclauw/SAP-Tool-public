@@ -289,6 +289,7 @@ def apply_update(
         "applied_at": datetime.now().isoformat(timespec="seconds"),
         "deps_lock_sha": dependencies.lock_hash(root),
         "dependencies": [],
+        "deps_ok": False,
     }
     if previous_sha:
         _write_state(root, state)
@@ -303,6 +304,7 @@ def apply_update(
         ) from exc
     state["dependencies"] = list(installed)
     state["deps_lock_sha"] = dependencies.lock_hash(root)
+    state["deps_ok"] = True
     if previous_sha:
         _write_state(root, state)
     return version
@@ -368,9 +370,7 @@ def finish_pending_dependencies(root: Path | str = APP_ROOT) -> str | None:
     root = Path(root)
     state = previous_update(root)
     pending = _pending_path(root).exists()
-    incomplete_state = bool(
-        state and state.get("deps_lock_sha") and not state.get("dependencies")
-    )
+    incomplete_state = bool(state and not state.get("deps_ok"))
     if not pending and not incomplete_state:
         return None
     try:
@@ -380,6 +380,7 @@ def finish_pending_dependencies(root: Path | str = APP_ROOT) -> str | None:
     if state:
         state["dependencies"] = list(installed)
         state["deps_lock_sha"] = dependencies.lock_hash(root)
+        state["deps_ok"] = True
         _write_state(root, state)
     return None
 

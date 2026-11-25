@@ -8,7 +8,7 @@ from pathlib import Path
 
 from pypdf import PdfReader, PdfWriter
 
-from tools.print_team_colors import team_color
+from tools.print_team_colors import contrast_text, team_color
 
 MM = 72 / 25.4
 
@@ -24,7 +24,7 @@ def _group_orders(orders: list[dict]) -> list[tuple[str, list[dict]]]:
 
 
 def _tag_page(page, team: str, revision: str, color: str) -> None:
-    from reportlab.lib.colors import HexColor, white
+    from reportlab.lib.colors import HexColor
     from reportlab.pdfbase.pdfmetrics import stringWidth
     from reportlab.pdfgen import canvas
 
@@ -43,7 +43,7 @@ def _tag_page(page, team: str, revision: str, color: str) -> None:
     size = 8
     while size > 5 and stringWidth(label, "Helvetica-Bold", size) > tag_w - 6 * MM:
         size -= 0.5
-    overlay.setFillColor(white)
+    overlay.setFillColor(HexColor(contrast_text(color)))
     overlay.setFont("Helvetica-Bold", size)
     overlay.drawString(x + 3 * MM, y + 2.6 * MM, label)
     overlay.showPage()

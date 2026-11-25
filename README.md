@@ -1,5 +1,10 @@
 # SAP Work Order Tool
 
+## 2026.11.25.1 — 2026-11-25
+
+- Print Orders team summaries now follow the chosen tool-window language (Dutch, French, English or Spanish), with larger labels, slightly larger order images and a clearer technician table with no notes line.
+- Dependency updates now replace only the packages that actually changed and restore the previous package if Windows blocks a file, so an interrupted update cannot leave a broken package. Reverting to an earlier version now restores that version's pinned packages correctly.
+
 ## 2026.11.24.6 — 2026-11-24
 
 - Print Orders team summaries now keep the first order image instead of replacing it with the no-image placeholder.
